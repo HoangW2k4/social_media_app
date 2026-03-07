@@ -1,6 +1,6 @@
 const Map<String, String> vi = {
   // App
-  'app_name': 'SocialBook',
+  'app_name': 'FaceBrick',
   'app_tagline': 'Kết nối với bạn bè và thế giới xung quanh bạn.',
 
   // Bottom Navigation
@@ -39,7 +39,7 @@ const Map<String, String> vi = {
   'about_title': 'Giới thiệu',
   'about_app_info': 'Thông tin ứng dụng',
   'about_app_description':
-      'SocialBook là ứng dụng mạng xã hội lấy cảm hứng từ Facebook, được xây dựng bằng Flutter. Ứng dụng hỗ trợ song ngữ (Tiếng Anh/Tiếng Việt), thiết kế giao diện hiện đại và các tính năng mạng xã hội cơ bản.',
+      'FaceBrick là ứng dụng mạng xã hội lấy cảm hứng từ Facebook, được xây dựng bằng Flutter. Ứng dụng hỗ trợ song ngữ (Tiếng Anh/Tiếng Việt), thiết kế giao diện hiện đại và các tính năng mạng xã hội cơ bản.',
   'about_version': 'Phiên bản',
   'about_platform': 'Nền tảng',
   'about_framework': 'Framework',

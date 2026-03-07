@@ -289,7 +289,7 @@ class AboutPage extends StatelessWidget {
           // Footer
           Center(
             child: Text(
-              '© 2026 SocialBook. All rights reserved.',
+              '© 2026 FaceBrick. All rights reserved.',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
           ),
