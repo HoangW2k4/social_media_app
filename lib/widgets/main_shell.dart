@@ -16,6 +16,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  late PageController _pageController;
 
   final List<Widget> _pages = const [
     HomePage(),
@@ -23,7 +24,16 @@ class _MainShellState extends State<MainShell> {
     MessagesPage(),
     AboutPage(),
   ];
-
+  @override
+  void initState(){
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+  @override
+  void dispose(){
+    _pageController.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -53,7 +63,7 @@ class _MainShellState extends State<MainShell> {
               ),
               child: const Center(
                 child: Text(
-                  'S',
+                  'F',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -114,10 +124,25 @@ class _MainShellState extends State<MainShell> {
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index){
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          _pageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeIn
+          );
+        },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
