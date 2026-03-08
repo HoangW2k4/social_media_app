@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/language_provider.dart';
-import '../screens/home_page.dart';
-import '../screens/friends_page.dart';
-import '../screens/messages_page.dart';
-import '../screens/about_page.dart';
+import '../screens/home_page/home_page.dart';
+import '../screens/friends_page/friends_page.dart';
+import '../screens/messages_page/messages_page.dart';
+import '../screens/about_page/about_page.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
