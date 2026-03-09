@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
     final langProvider = Provider.of<LanguageProvider>(context);
 
     return MaterialApp(
-      title: 'SocialBook',
+      title: 'FaceBrick',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),

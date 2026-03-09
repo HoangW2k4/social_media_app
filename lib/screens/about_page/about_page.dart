@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../l10n/app_localizations.dart';
-import '../providers/language_provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/language_provider.dart';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
@@ -289,7 +289,7 @@ class AboutPage extends StatelessWidget {
           // Footer
           Center(
             child: Text(
-              '© 2026 SocialBook. All rights reserved.',
+              '© 2026 FaceBrick. All rights reserved.',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
           ),

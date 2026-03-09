@@ -1,6 +1,6 @@
 const Map<String, String> en = {
   // App
-  'app_name': 'SocialBook',
+  'app_name': 'FaceBrick',
   'app_tagline': 'Connect with friends and the world around you.',
 
   // Bottom Navigation
@@ -39,7 +39,7 @@ const Map<String, String> en = {
   'about_title': 'About',
   'about_app_info': 'App Information',
   'about_app_description':
-      'SocialBook is a social media application inspired by Facebook, built with Flutter. It features bilingual support (English/Vietnamese), a modern UI design, and core social networking functionality.',
+      'FaceBrick is a social media application inspired by Facebook, built with Flutter. It features bilingual support (English/Vietnamese), a modern UI design, and core social networking functionality.',
   'about_version': 'Version',
   'about_platform': 'Platform',
   'about_framework': 'Framework',
