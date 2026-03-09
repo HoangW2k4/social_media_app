@@ -14,6 +14,8 @@ const Map<String, String> vi = {
   'home_like': 'Thích',
   'home_comment': 'Bình luận',
   'home_share': 'Chia sẻ',
+  'home_reply': 'Trả lời',
+  'home_write_comment': 'Viết bình luận...',
   'home_create_post': 'Tạo bài viết',
   'home_stories': 'Tin',
   'home_your_story': 'Tin của bạn',
@@ -68,4 +70,10 @@ const Map<String, String> vi = {
   'loading': 'Đang tải...',
   'no_data': 'Không có dữ liệu',
   'language_switched': 'Đã chuyển sang Tiếng Việt',
+
+  // Feature Not Ready
+  'feature_not_ready_title': 'Sắp ra mắt!',
+  'feature_not_ready_subtitle':
+      'Tính năng này đang được phát triển.\nVui lòng quay lại sau!',
+  'feature_not_ready_go_back': 'Quay lại',
 };

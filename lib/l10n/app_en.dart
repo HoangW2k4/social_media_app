@@ -14,6 +14,8 @@ const Map<String, String> en = {
   'home_like': 'Like',
   'home_comment': 'Comment',
   'home_share': 'Share',
+  'home_reply': 'Reply',
+  'home_write_comment': 'Write a comment...',
   'home_create_post': 'Create Post',
   'home_stories': 'Stories',
   'home_your_story': 'Your Story',
@@ -68,4 +70,10 @@ const Map<String, String> en = {
   'loading': 'Loading...',
   'no_data': 'No data available',
   'language_switched': 'Language switched to English',
+
+  // Feature Not Ready
+  'feature_not_ready_title': 'Coming Soon!',
+  'feature_not_ready_subtitle':
+      'This feature is still under development.\nPlease check back later!',
+  'feature_not_ready_go_back': 'Go Back',
 };
