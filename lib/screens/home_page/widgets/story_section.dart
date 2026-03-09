@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import 'dart:math';
+import 'story_detail.dart';
 
 class StorySection extends StatefulWidget {
   const StorySection({super.key});
@@ -19,6 +20,17 @@ class _StorySectionState extends State<StorySection> {
   ];
 
   final List<_StoryVisual> _storyVisuals = [];
+
+  List<StoryDetailData> get _storyDetails {
+    return List.generate(
+      _names.length,
+      (index) => StoryDetailData(
+        userName: _names[index],
+        imagePath: _storyVisuals[index].imagePath,
+        avatarColor: _storyVisuals[index].color,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -53,9 +65,10 @@ class _StorySectionState extends State<StorySection> {
           final visual = _storyVisuals[index - 1];
 
           return _buildStoryItem(
-            _names[index - 1],
-            visual.color,
-            visual.imagePath,
+            storyIndex: index - 1,
+            name: _names[index - 1],
+            color: visual.color,
+            imagePath: visual.imagePath,
           );
         },
       ),
@@ -120,56 +133,76 @@ class _StorySectionState extends State<StorySection> {
     );
   }
 
-  Widget _buildStoryItem(String name, Color color, String imagePath) {
-    return Container(
-      width: 110,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover),
-      ),
+  Widget _buildStoryItem({
+    required int storyIndex,
+    required String name,
+    required Color color,
+    required String imagePath,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => StoryDetailPage(
+              stories: _storyDetails,
+              initialIndex: storyIndex,
+            ),
+          ),
+        );
+      },
       child: Container(
+        width: 110,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withValues(alpha: 0.1),
-              Colors.black.withValues(alpha: 0.5),
-            ],
+          image: DecorationImage(
+            image: AssetImage(imagePath),
+            fit: BoxFit.cover,
           ),
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: 8,
-              left: 8,
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: color,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.1),
+                Colors.black.withValues(alpha: 0.5),
+              ],
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 8,
+                left: 8,
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: color,
+                  child: Text(
+                    name[0],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 8,
+                left: 8,
+                right: 8,
                 child: Text(
-                  name[0],
-                  style: const TextStyle(color: Colors.white),
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            Positioned(
-              bottom: 8,
-              left: 8,
-              right: 8,
-              child: Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
