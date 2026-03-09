@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 class StoryDetailData {
@@ -33,15 +34,16 @@ class StoryDetailPage extends StatefulWidget {
 
 class _StoryDetailPageState extends State<StoryDetailPage> {
   static const Duration _storyDuration = Duration(seconds: 8);
-  static const Duration _storyTransitionDuration = Duration(milliseconds: 240);
-  static const double _swipeVelocityThreshold = 250;
   static const double _dismissDragDistance = 140;
   static const double _dismissVelocityThreshold = 900;
 
+  late PageController _pageController;
   late int _currentIndex;
-  int _storyDirection = 1;
   int _progressTicker = 0;
   double _progress = 0;
+  double _pageValue = 0;
+
+  // Vertical drag-to-dismiss state
   double _verticalDragOffset = 0;
   bool _isVerticalDragging = false;
 
@@ -51,7 +53,22 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+    _pageValue = _currentIndex.toDouble();
+
+    _pageController.addListener(() {
+      setState(() {
+        _pageValue = _pageController.page ?? _currentIndex.toDouble();
+      });
+    });
+
     _startAutoCloseProgress();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _startAutoCloseProgress() {
@@ -74,7 +91,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
       });
 
       if (_progress >= 1) {
-        _goToStory(isNext: true);
+        _goToNextOrClose();
         return false;
       }
 
@@ -83,27 +100,27 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
     });
   }
 
-  void _goToStory({required bool isNext}) {
-    final delta = isNext ? 1 : -1;
-    final target = _currentIndex + delta;
-
-    if (target < 0) {
+  void _goToNextOrClose() {
+    final next = _currentIndex + 1;
+    if (next >= widget.stories.length) {
       Navigator.of(context).pop();
       return;
     }
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutCubic,
+    );
+  }
 
-    if (target >= widget.stories.length) {
-      Navigator.of(context).pop();
-      return;
-    }
-
+  void _onPageChanged(int index) {
     setState(() {
-      _storyDirection = isNext ? 1 : -1;
-      _currentIndex = target;
+      _currentIndex = index;
     });
     _startAutoCloseProgress();
   }
 
+  // --- Vertical drag-to-dismiss ---
   void _onVerticalDragUpdate(DragUpdateDetails details) {
     final next = (_verticalDragOffset + details.delta.dy).clamp(0.0, 320.0);
     setState(() {
@@ -114,103 +131,110 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
 
   void _onVerticalDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    final shouldClose =
-        _verticalDragOffset >= _dismissDragDistance ||
-        velocity >= _dismissVelocityThreshold;
-
-    if (shouldClose) {
+    if (_verticalDragOffset >= _dismissDragDistance ||
+        velocity >= _dismissVelocityThreshold) {
       Navigator.of(context).pop();
       return;
     }
-
     setState(() {
       _isVerticalDragging = false;
       _verticalDragOffset = 0;
     });
   }
 
+  // --- Cube 3D transform for each page ---
+  Widget _buildCubePage(int index) {
+    final story = widget.stories[index];
+    final diff = index - _pageValue;
+    final rotationY = diff * (math.pi / 2.8);
+
+    final isLeaving = diff.abs() > 0.5;
+    final transform = Matrix4.identity()
+      ..setEntry(3, 2, 0.002)
+      ..rotateY(rotationY);
+
+    transform.setTranslationRaw(
+      diff < 0 ? -diff * MediaQuery.of(context).size.width * 0.8 : 0,
+      0,
+      0,
+    );
+
+    return Transform(
+      alignment: diff <= 0 ? Alignment.centerRight : Alignment.centerLeft,
+      transform: transform,
+      child: Opacity(
+        opacity: (1 - diff.abs() * 0.6).clamp(0.0, 1.0),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(isLeaving ? 10 : 0),
+                child: Image.asset(story.imagePath, fit: BoxFit.cover),
+              ),
+            ),
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x8A000000),
+                      Color(0x1F000000),
+                      Color(0x9E000000),
+                    ],
+                    stops: [0, 0.45, 1],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              left: 8,
+              right: 8,
+              child: _buildTopOverlay(context, story),
+            ),
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 12,
+              child: _buildBottomActions(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dragOpacity = (1 - (_verticalDragOffset / 260)).clamp(0.65, 1.0);
+    final dragScale = (1 - (_verticalDragOffset / 800)).clamp(0.85, 1.0);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onHorizontalDragEnd: (details) {
-            final velocity = details.primaryVelocity ?? 0;
-            if (velocity <= -_swipeVelocityThreshold) {
-              _goToStory(isNext: true);
-            } else if (velocity >= _swipeVelocityThreshold) {
-              _goToStory(isNext: false);
-            }
-          },
           onVerticalDragUpdate: _onVerticalDragUpdate,
           onVerticalDragEnd: _onVerticalDragEnd,
           child: AnimatedContainer(
             duration: _isVerticalDragging
                 ? Duration.zero
-                : const Duration(milliseconds: 180),
+                : const Duration(milliseconds: 300),
             curve: Curves.easeOut,
-            transform: Matrix4.translationValues(0, _verticalDragOffset, 0),
+            transform: Matrix4.identity()
+              ..translate(0.0, _verticalDragOffset, 0.0)
+              ..scale(dragScale),
+            transformAlignment: Alignment.topCenter,
             child: Opacity(
               opacity: dragOpacity,
-              child: AnimatedSwitcher(
-                duration: _storyTransitionDuration,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final beginOffset = Offset(_storyDirection * 0.14, 0);
-                  final slide = Tween<Offset>(
-                    begin: beginOffset,
-                    end: Offset.zero,
-                  ).animate(animation);
-
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(position: slide, child: child),
-                  );
-                },
-                child: Stack(
-                  key: ValueKey<int>(_currentIndex),
-                  children: [
-                    Positioned.fill(
-                      child: Image.asset(
-                        _currentStory.imagePath,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0x8A000000),
-                              Color(0x1F000000),
-                              Color(0x9E000000),
-                            ],
-                            stops: [0, 0.45, 1],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      right: 8,
-                      child: _buildTopOverlay(context),
-                    ),
-                    Positioned(
-                      left: 10,
-                      right: 10,
-                      bottom: 12,
-                      child: _buildBottomActions(),
-                    ),
-                  ],
-                ),
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: widget.stories.length,
+                onPageChanged: _onPageChanged,
+                physics: const BouncingScrollPhysics(),
+                itemBuilder: (context, index) => _buildCubePage(index),
               ),
             ),
           ),
@@ -219,14 +243,15 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
     );
   }
 
-  Widget _buildTopOverlay(BuildContext context) {
+  Widget _buildTopOverlay(BuildContext context, StoryDetailData story) {
+    final isActive = story == _currentStory;
     return Column(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: LinearProgressIndicator(
             minHeight: 3,
-            value: _progress,
+            value: isActive ? _progress : 0,
             backgroundColor: Colors.white.withValues(alpha: 0.25),
             valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
           ),
@@ -239,9 +264,9 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
               backgroundColor: Colors.white,
               child: CircleAvatar(
                 radius: 17,
-                backgroundColor: _currentStory.avatarColor,
+                backgroundColor: story.avatarColor,
                 child: Text(
-                  _currentStory.userName[0],
+                  story.userName[0],
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -258,7 +283,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                     children: [
                       Flexible(
                         child: Text(
-                          _currentStory.userName,
+                          story.userName,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
@@ -269,7 +294,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        _currentStory.timeAgo,
+                        story.timeAgo,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 12,
@@ -277,7 +302,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                       ),
                     ],
                   ),
-                  if (_currentStory.sponsored)
+                  if (story.sponsored)
                     Text(
                       'Sponsored',
                       style: TextStyle(
