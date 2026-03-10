@@ -6,7 +6,6 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   static const _posts = [
-    // ─── 1 image ──────────────────────────────
     PostItemData(
       userName: 'Nguyễn Văn A',
       time: '2h',

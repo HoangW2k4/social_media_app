@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/feature_not_ready.dart' show showFeatureNotReady;
 import 'post_layout.dart' show CommentData;
 
 class PostComments extends StatefulWidget {
@@ -31,9 +32,30 @@ class PostComments extends StatefulWidget {
 
 class _PostCommentsState extends State<PostComments> {
   bool _showComments = false;
+  bool _liked = false;
+  late int _likeCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeCount = widget.likes;
+  }
+
+  void _toggleLike() {
+    setState(() {
+      _liked = !_liked;
+      _likeCount += _liked ? 1 : -1;
+    });
+  }
+
+  void _openFeatureNotReady(BuildContext context) {
+    showFeatureNotReady(context);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final likeColor = _liked ? Colors.blue : Colors.grey.shade700;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -57,7 +79,7 @@ class _PostCommentsState extends State<PostComments> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${widget.likes}',
+                  '$_likeCount',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],
@@ -75,15 +97,21 @@ class _PostCommentsState extends State<PostComments> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _ActionButton(
-              icon: Icons.thumb_up_outlined,
+              icon: _liked ? Icons.thumb_up : Icons.thumb_up_outlined,
               label: widget.likeLabel,
+              color: likeColor,
+              onTap: _toggleLike,
             ),
             _ActionButton(
               icon: Icons.chat_bubble_outline,
               label: widget.commentLabel,
               onTap: () => setState(() => _showComments = !_showComments),
             ),
-            _ActionButton(icon: Icons.share_outlined, label: widget.shareLabel),
+            _ActionButton(
+              icon: Icons.share_outlined,
+              label: widget.shareLabel,
+              onTap: () => _openFeatureNotReady(context),
+            ),
           ],
         ),
 
@@ -173,8 +201,8 @@ class _PostCommentsState extends State<PostComments> {
   }
 }
 
-// ─── Single comment bubble ───────────────────────────────────────────────────
-class _CommentBubble extends StatelessWidget {
+// ─── Single comment bubble (StatefulWidget for like toggle) ──────────────────
+class _CommentBubble extends StatefulWidget {
   final CommentData comment;
   final String likeLabel;
   final String replyLabel;
@@ -186,7 +214,35 @@ class _CommentBubble extends StatelessWidget {
   });
 
   @override
+  State<_CommentBubble> createState() => _CommentBubbleState();
+}
+
+class _CommentBubbleState extends State<_CommentBubble> {
+  bool _liked = false;
+  late int _likeCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeCount = widget.comment.likeCount;
+  }
+
+  void _toggleLike() {
+    setState(() {
+      _liked = !_liked;
+      _likeCount += _liked ? 1 : -1;
+    });
+  }
+
+  void _openFeatureNotReady() {
+    showFeatureNotReady(context);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final comment = widget.comment;
+    final likeColor = _liked ? Colors.blue : Colors.grey.shade700;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Column(
@@ -253,24 +309,30 @@ class _CommentBubble extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Text(
-                            likeLabel,
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                          GestureDetector(
+                            onTap: _toggleLike,
+                            child: Text(
+                              widget.likeLabel,
+                              style: TextStyle(
+                                color: likeColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Text(
-                            replyLabel,
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                          GestureDetector(
+                            onTap: _openFeatureNotReady,
+                            child: Text(
+                              widget.replyLabel,
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          if (comment.likeCount > 0) ...[
+                          if (_likeCount > 0) ...[
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -297,7 +359,7 @@ class _CommentBubble extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 2),
                                   Text(
-                                    '${comment.likeCount}',
+                                    '$_likeCount',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.grey.shade600,
@@ -324,8 +386,8 @@ class _CommentBubble extends StatelessWidget {
                   for (final reply in comment.replies)
                     _CommentBubble(
                       comment: reply,
-                      likeLabel: likeLabel,
-                      replyLabel: replyLabel,
+                      likeLabel: widget.likeLabel,
+                      replyLabel: widget.replyLabel,
                     ),
                 ],
               ),
@@ -340,19 +402,23 @@ class _CommentBubble extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? color;
   final VoidCallback? onTap;
 
-  const _ActionButton({required this.icon, required this.label, this.onTap});
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    this.color,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? Colors.grey.shade700;
     return TextButton.icon(
       onPressed: onTap ?? () {},
-      icon: Icon(icon, color: Colors.grey.shade700, size: 20),
-      label: Text(
-        label,
-        style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-      ),
+      icon: Icon(icon, color: c, size: 20),
+      label: Text(label, style: TextStyle(color: c, fontSize: 13)),
     );
   }
 }

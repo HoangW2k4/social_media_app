@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
-class FeatureNotReady extends StatelessWidget {
+/// Show a "feature not ready" popup dialog.
+void showFeatureNotReady(
+  BuildContext context, {
+  IconData icon = Icons.construction_rounded,
+  String? featureNameKey,
+}) {
+  showDialog(
+    context: context,
+    builder: (_) =>
+        _FeatureNotReadyDialog(icon: icon, featureNameKey: featureNameKey),
+  );
+}
+
+class _FeatureNotReadyDialog extends StatelessWidget {
   final IconData icon;
   final String? featureNameKey;
 
-  const FeatureNotReady({
-    super.key,
-    this.icon = Icons.construction_rounded,
-    this.featureNameKey,
-  });
+  const _FeatureNotReadyDialog({required this.icon, this.featureNameKey});
 
   @override
   Widget build(BuildContext context) {
@@ -18,23 +27,24 @@ class FeatureNotReady extends StatelessWidget {
         ? t.translate(featureNameKey!)
         : null;
 
-    return Center(
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Animated-looking icon container
+            // Icon
             Container(
-              width: 120,
-              height: 120,
+              width: 90,
+              height: 90,
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 56, color: Colors.blue.shade400),
+              child: Icon(icon, size: 44, color: Colors.blue.shade400),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Title
             Text(
@@ -46,7 +56,7 @@ class FeatureNotReady extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // Subtitle
             Text(
@@ -61,11 +71,11 @@ class FeatureNotReady extends StatelessWidget {
 
             // Optional feature name chip
             if (featureName != null) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                  horizontal: 14,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
@@ -90,27 +100,22 @@ class FeatureNotReady extends StatelessWidget {
               ),
             ],
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
 
-            // Go back button
-            FilledButton.icon(
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                }
-              },
-              icon: const Icon(Icons.arrow_back_rounded, size: 18),
-              label: Text(t.translate('feature_not_ready_go_back')),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
+            // Close button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
+                child: Text(t.translate('feature_not_ready_go_back')),
               ),
             ),
           ],
