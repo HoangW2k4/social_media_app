@@ -135,22 +135,26 @@ class PostImageGrid extends StatelessWidget {
   }
 
   Widget _imageCell(PostImage img) {
+    ImageProvider? imageProvider;
+    if (img.assetPath != null) {
+      imageProvider = AssetImage(img.assetPath!);
+    } else if (img.url != null) {
+      imageProvider = NetworkImage(img.url!);
+    }
+
     return GestureDetector(
       onTap: img.onTap,
       child: Container(
         decoration: BoxDecoration(
           color: img.color ?? Colors.grey.shade300,
-          image: img.url != null
-              ? DecorationImage(
-                  image: NetworkImage(img.url!),
-                  fit: BoxFit.cover,
-                )
+          image: imageProvider != null
+              ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
               : null,
         ),
-        child: img.url == null
-            ? Center(
+        child: img.isVideo
+            ? const Center(
                 child: Icon(
-                  img.isVideo ? Icons.play_circle_fill : Icons.image,
+                  Icons.play_circle_fill,
                   size: 40,
                   color: Colors.white70,
                 ),
@@ -188,9 +192,16 @@ class PostImageGrid extends StatelessWidget {
 
 class PostImage {
   final String? url;
+  final String? assetPath;
   final Color? color;
   final bool isVideo;
   final VoidCallback? onTap;
 
-  const PostImage({this.url, this.color, this.isVideo = false, this.onTap});
+  const PostImage({
+    this.url,
+    this.assetPath,
+    this.color,
+    this.isVideo = false,
+    this.onTap,
+  });
 }

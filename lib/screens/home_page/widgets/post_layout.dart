@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:social_media_app/widgets/feature_not_ready.dart';
 import '../../../l10n/app_localizations.dart';
 import 'post_comments.dart';
 import 'post_image_grid.dart';
@@ -81,7 +82,10 @@ class _PostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.more_horiz),
+                onPressed: () => showFeatureNotReady(context),
+              ),
             ],
           ),
         ),

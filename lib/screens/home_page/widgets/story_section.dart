@@ -42,7 +42,7 @@ class _StorySectionState extends State<StorySection> {
       List.generate(
         _names.length,
         (_) => _StoryVisual(
-          imagePath: 'assets/images/img_${random.nextInt(10) + 1}.jpg',
+          imagePath: 'assets/images/img_${random.nextInt(30) + 1}.jpg',
           color: Colors.primaries[random.nextInt(Colors.primaries.length)],
         ),
       ),
