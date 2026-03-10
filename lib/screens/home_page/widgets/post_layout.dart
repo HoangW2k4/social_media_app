@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:social_media_app/widgets/feature_not_ready.dart';
 import '../../../l10n/app_localizations.dart';
+import 'image_detail.dart';
 import 'post_comments.dart';
+import 'post_detail.dart';
 import 'post_image_grid.dart';
 
 class PostLayout extends StatelessWidget {
@@ -33,93 +35,119 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: post.color,
-                child: Text(
-                  post.userName[0],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => PostDetailPage(post: post)));
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: post.color,
+                  child: Text(
+                    post.userName[0],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.userName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          post.time,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.userName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            post.time,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.public,
-                          size: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.public,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.more_horiz),
-                onPressed: () => showFeatureNotReady(context),
-              ),
-            ],
+                IconButton(
+                  icon: const Icon(Icons.more_horiz),
+                  onPressed: () => showFeatureNotReady(context),
+                ),
+              ],
+            ),
           ),
-        ),
 
-        // Content
-        if (post.content.isNotEmpty)
+          // Content
+          if (post.content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Text(post.content, style: const TextStyle(fontSize: 15)),
+            ),
+
+          // Image grid
+          if (post.images.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            PostImageGrid(images: _imagesWithTap(context, post.images)),
+          ],
+
+          // Actions + comments
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Text(post.content, style: const TextStyle(fontSize: 15)),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: PostComments(
+              likes: post.likes,
+              commentsCount: post.commentsCount,
+              shares: post.shares,
+              commentItems: post.commentItems,
+              likeLabel: t.translate('home_like'),
+              commentLabel: t.translate('home_comment'),
+              shareLabel: t.translate('home_share'),
+              replyLabel: t.translate('home_reply'),
+              writeCommentHint: t.translate('home_write_comment'),
+            ),
           ),
-
-        // Image grid
-        if (post.images.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          PostImageGrid(images: post.images),
         ],
-
-        // Actions + comments
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: PostComments(
-            likes: post.likes,
-            commentsCount: post.commentsCount,
-            shares: post.shares,
-            commentItems: post.commentItems,
-            likeLabel: t.translate('home_like'),
-            commentLabel: t.translate('home_comment'),
-            shareLabel: t.translate('home_share'),
-            replyLabel: t.translate('home_reply'),
-            writeCommentHint: t.translate('home_write_comment'),
-          ),
-        ),
-      ],
+      ),
     );
+  }
+
+  List<PostImage> _imagesWithTap(BuildContext context, List<PostImage> images) {
+    return List.generate(images.length, (i) {
+      final img = images[i];
+      return PostImage(
+        url: img.url,
+        assetPath: img.assetPath,
+        color: img.color,
+        isVideo: img.isVideo,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ImageDetailPage(images: images, initialIndex: i),
+            ),
+          );
+        },
+      );
+    });
   }
 }
 

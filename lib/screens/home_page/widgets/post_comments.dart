@@ -12,6 +12,7 @@ class PostComments extends StatefulWidget {
   final String likeLabel;
   final String replyLabel;
   final String writeCommentHint;
+  final bool initiallyExpanded;
 
   const PostComments({
     super.key,
@@ -24,6 +25,7 @@ class PostComments extends StatefulWidget {
     required this.replyLabel,
     required this.writeCommentHint,
     this.commentItems = const [],
+    this.initiallyExpanded = false,
   });
 
   @override
@@ -31,7 +33,7 @@ class PostComments extends StatefulWidget {
 }
 
 class _PostCommentsState extends State<PostComments> {
-  bool _showComments = false;
+  late bool _showComments;
   bool _liked = false;
   late int _likeCount;
 
@@ -39,6 +41,7 @@ class _PostCommentsState extends State<PostComments> {
   void initState() {
     super.initState();
     _likeCount = widget.likes;
+    _showComments = widget.initiallyExpanded;
   }
 
   void _toggleLike() {
@@ -201,7 +204,6 @@ class _PostCommentsState extends State<PostComments> {
   }
 }
 
-// ─── Single comment bubble (StatefulWidget for like toggle) ──────────────────
 class _CommentBubble extends StatefulWidget {
   final CommentData comment;
   final String likeLabel;
