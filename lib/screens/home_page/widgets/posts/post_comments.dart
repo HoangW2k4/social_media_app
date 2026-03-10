@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../widgets/feature_not_ready.dart' show showFeatureNotReady;
+import '../../../../widgets/feature_not_ready.dart' show showFeatureNotReady;
 import 'post_layout.dart' show CommentData;
 
 class PostComments extends StatefulWidget {

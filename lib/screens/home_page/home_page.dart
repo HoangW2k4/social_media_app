@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:social_media_app/screens/home_page/widgets/story_section.dart';
-import 'widgets/post_item.dart';
+import 'package:social_media_app/screens/home_page/widgets/storys/story_section.dart';
+import 'widgets/posts/post_item.dart';
 
 String _randomAsset(Random r) => 'assets/images/img_${r.nextInt(30) + 1}.jpg';
 
@@ -13,15 +13,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final List<PostItemData> _posts;
+  final List<PostItemData> _posts = [];
+  late final List<PostItemData> _initialPosts;
 
   @override
   void initState() {
     super.initState();
     final r = Random();
 
-    _posts = [
-      // ─── 1 image ──────────────────────────────
+    _initialPosts = [
       PostItemData(
         userName: 'Nguyễn Văn A',
         time: '2h',
@@ -56,7 +56,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      // ─── 2 images ─────────────────────────────
       PostItemData(
         userName: 'Trần Thị B',
         time: '5h',
@@ -66,10 +65,7 @@ class _HomePageState extends State<HomePage> {
         commentsCount: 89,
         shares: 34,
         color: Colors.purple,
-        images: [
-          PostImage(assetPath: _randomAsset(r)),
-          PostImage(assetPath: _randomAsset(r)),
-        ],
+        images: List.generate(2, (_) => PostImage(assetPath: _randomAsset(r))),
         commentItems: const [
           CommentData(
             userName: 'Phạm Văn D',
@@ -80,7 +76,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      // ─── 3 images ─────────────────────────────
       PostItemData(
         userName: 'Lê Văn C',
         time: '1d',
@@ -89,13 +84,8 @@ class _HomePageState extends State<HomePage> {
         commentsCount: 23,
         shares: 5,
         color: Colors.orange,
-        images: [
-          PostImage(assetPath: _randomAsset(r)),
-          PostImage(assetPath: _randomAsset(r)),
-          PostImage(assetPath: _randomAsset(r)),
-        ],
+        images: List.generate(3, (_) => PostImage(assetPath: _randomAsset(r))),
       ),
-      // ─── 4 images ─────────────────────────────
       PostItemData(
         userName: 'Phạm Văn D',
         time: '2d',
@@ -104,12 +94,7 @@ class _HomePageState extends State<HomePage> {
         commentsCount: 67,
         shares: 18,
         color: Colors.teal,
-        images: [
-          PostImage(assetPath: _randomAsset(r)),
-          PostImage(assetPath: _randomAsset(r)),
-          PostImage(assetPath: _randomAsset(r)),
-          PostImage(assetPath: _randomAsset(r)),
-        ],
+        images: List.generate(4, (_) => PostImage(assetPath: _randomAsset(r))),
         commentItems: const [
           CommentData(
             userName: 'Nguyễn Văn A',
@@ -135,7 +120,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      // ─── 5+ images (6 total, shows +1 overlay) ─
       PostItemData(
         userName: 'Hoàng Thị E',
         time: '3d',
@@ -155,7 +139,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      // ─── no image, text only ──────────────────
       const PostItemData(
         userName: 'Mai Văn F',
         time: '4d',
@@ -167,6 +150,7 @@ class _HomePageState extends State<HomePage> {
         color: Colors.red,
       ),
     ];
+    _posts.addAll(_initialPosts);
   }
 
   @override
@@ -175,6 +159,15 @@ class _HomePageState extends State<HomePage> {
       body: CustomScrollView(
         slivers: [
           const SliverToBoxAdapter(child: StorySection()),
+          SliverToBoxAdapter(
+            child: PostCreateCard(
+              currentUserName: 'Bạn',
+              currentUserColor: Colors.blueAccent,
+              onPostCreated: (post) {
+                setState(() => _posts.insert(0, post));
+              },
+            ),
+          ),
           const SliverToBoxAdapter(
             child: Divider(thickness: 8, color: Color(0xFFEEEEEE)),
           ),

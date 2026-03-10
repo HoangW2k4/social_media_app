@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../l10n/app_localizations.dart';
-import '../../../widgets/feature_not_ready.dart' show showFeatureNotReady;
-import 'image_detail.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../widgets/feature_not_ready.dart' show showFeatureNotReady;
+import '../image_detail.dart';
 import 'post_comments.dart';
 import 'post_image_grid.dart';
 import 'post_layout.dart';
