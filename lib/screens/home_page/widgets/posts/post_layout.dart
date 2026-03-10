@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:social_media_app/widgets/feature_not_ready.dart';
-import '../../../l10n/app_localizations.dart';
-import 'image_detail.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../image_detail.dart';
 import 'post_comments.dart';
 import 'post_detail.dart';
 import 'post_image_grid.dart';

@@ -20,6 +20,15 @@ const Map<String, String> en = {
   'home_stories': 'Stories',
   'home_your_story': 'Your Story',
 
+  // Post Create
+  'post_create_title': 'Create Post',
+  'post_create_post_btn': 'Post',
+  'post_create_public': 'Public',
+  'post_create_photo': 'Photo',
+  'post_create_camera': 'Camera',
+  'post_create_feeling': 'Feeling',
+  'post_create_location': 'Check in',
+
   // Friends Page
   'friends_title': 'Friends',
   'friends_requests': 'Friend Requests',

@@ -20,6 +20,15 @@ const Map<String, String> vi = {
   'home_stories': 'Tin',
   'home_your_story': 'Tin của bạn',
 
+  // Post Create
+  'post_create_title': 'Tạo bài viết',
+  'post_create_post_btn': 'Đăng',
+  'post_create_public': 'Công khai',
+  'post_create_photo': 'Ảnh',
+  'post_create_camera': 'Camera',
+  'post_create_feeling': 'Cảm xúc',
+  'post_create_location': 'Check in',
+
   // Friends Page
   'friends_title': 'Bạn bè',
   'friends_requests': 'Lời mời kết bạn',

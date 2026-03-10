@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'post_image_grid.dart';
+import 'posts/post_image_grid.dart';
 
 /// Fullscreen image viewer with PageView swipe + pinch-to-zoom.
 class ImageDetailPage extends StatefulWidget {
