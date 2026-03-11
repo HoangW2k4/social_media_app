@@ -18,14 +18,25 @@ class _MessagesPageState extends State<MessagesPage> {
   String _selectedFilter = 'all';
 
   final Map<String, _ConvData> _convMap = {
-    'Nguyễn Văn A': _ConvData('Nguyễn Văn A', 'Hẹn gặp lại nhé! 👋',  '2m',  true,  true,  Colors.blue,   false),
-    'Trần Thị B':   _ConvData('Trần Thị B',   'Ok, mình hiểu rồi ✅',  '15m', true,  true,  Colors.purple, false),
-    'Lê Văn C':     _ConvData('Lê Văn C',     'Ảnh đẹp quá!',          '1h',  false, false, Colors.orange, true),
-    'Phạm Thị D':   _ConvData('Phạm Thị D',   '',                       '',    true,  false, Colors.green,  false),
-    'Hoàng Văn E':  _ConvData('Hoàng Văn E',  'Cảm ơn bạn nhiều 🙏',   '3h',  false, false, Colors.red,    false),
-    'Vũ Thị F':     _ConvData('Vũ Thị F',     'Bạn rảnh không?',       '5h',  false, false, Colors.teal,   false),
-    'Đặng Văn G':   _ConvData('Đặng Văn G',   'Dự án hoàn thành rồi!', '1d',  false, false, Colors.indigo, false),
-    'Bùi Thị H':    _ConvData('Bùi Thị H',    'Haha 😂😂',             '2d',  false, false, Colors.pink,   false),
+    'Nguyễn Văn A': _ConvData('Nguyễn Văn A', 'Hẹn gặp lại nhé! 👋',  '2m',  true,  Colors.blue),
+    'Trần Thị B':   _ConvData('Trần Thị B',   'Ok, mình hiểu rồi ✅',  '15m', true,  Colors.purple),
+    'Lê Văn C':     _ConvData('Lê Văn C',     'Ảnh đẹp quá!',          '1h',  false, Colors.orange),
+    'Phạm Thị D':   _ConvData('Phạm Thị D',   '',                       '',    true,  Colors.green),
+    'Hoàng Văn E':  _ConvData('Hoàng Văn E',  'Cảm ơn bạn nhiều 🙏',   '3h',  false, Colors.red),
+    'Vũ Thị F':     _ConvData('Vũ Thị F',     'Bạn rảnh không?',       '5h',  false, Colors.teal),
+    'Đặng Văn G':   _ConvData('Đặng Văn G',   'Dự án hoàn thành rồi!', '1d',  false, Colors.indigo),
+    'Bùi Thị H':    _ConvData('Bùi Thị H',    'Haha 😂😂',             '2d',  false, Colors.pink),
+  };
+
+  final Map<String, bool> _initialUnread = {
+    'Nguyễn Văn A': true,
+    'Trần Thị B':   true,
+    'Lê Văn C':     false,
+    'Phạm Thị D':   false,
+    'Hoàng Văn E':  false,
+    'Vũ Thị F':     false,
+    'Đặng Văn G':   false,
+    'Bùi Thị H':    false,
   };
 
   @override
@@ -48,21 +59,24 @@ class _MessagesPageState extends State<MessagesPage> {
           return ap.compareTo(bp);
         });
 
-        final visible = ordered.where((c) => !state.isArchived(c.name)).toList();
-
+        final visible  = ordered.where((c) => !state.isArchived(c.name)).toList();
         final filtered = _selectedFilter == 'unread'
-            ? visible.where((c) => state.isEffectivelyUnread(c.name, c.isUnread)).toList()
+            ? visible.where((c) => state.isEffectivelyUnread(
+            c.name, _initialUnread[c.name] ?? false)).toList()
             : visible;
 
         final archivedCount = ordered.where((c) => state.isArchived(c.name)).length;
-        final onlineList = ordered.where((c) => c.isOnline).toList();
+
+        final onlineNames = state.onlineContacts
+            .where((n) => _convMap.containsKey(n))
+            .toList();
 
         return Scaffold(
           body: SafeArea(
             child: Stack(children: [
               Column(children: [
                 _buildSearchBar(t),
-                _buildStoryRow(onlineList),
+                _buildStoryRow(onlineNames),
                 _buildFilterRow(),
                 Expanded(
                   child: filtered.isEmpty
@@ -75,6 +89,7 @@ class _MessagesPageState extends State<MessagesPage> {
                       return _SwipeableTile(
                         key: ValueKey(filtered[i].name),
                         conv: filtered[i],
+                        initialUnread: _initialUnread[filtered[i].name] ?? false,
                         onTap: () => _openChat(filtered[i]),
                         onPin: () => state.togglePin(filtered[i].name),
                         onArchive: () => state.toggleArchive(filtered[i].name),
@@ -97,7 +112,6 @@ class _MessagesPageState extends State<MessagesPage> {
       builder: (_) => ChatPage(
         contactName: conv.name,
         contactColor: conv.color,
-        isOnline: conv.isOnline,
       ),
     ));
   }
@@ -151,7 +165,7 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
-  Widget _buildStoryRow(List<_ConvData> online) {
+  Widget _buildStoryRow(List<String> onlineNames) {
     return SizedBox(
       height: 96,
       child: ListView(
@@ -159,7 +173,11 @@ class _MessagesPageState extends State<MessagesPage> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         children: [
           _createStory(),
-          ...online.map((c) => _storyItem(c.name, c.color)),
+          ...onlineNames.map((name) {
+            final conv = _convMap[name];
+            if (conv == null) return const SizedBox.shrink();
+            return _storyItem(conv.name, conv.color);
+          }),
         ],
       ),
     );
@@ -207,7 +225,7 @@ class _MessagesPageState extends State<MessagesPage> {
           final size = MediaQuery.of(context).size;
           const s = 58.0, pad = 8.0;
           setState(() {
-            fabRight = (fabRight - d.delta.dx).clamp(pad, size.width - s - pad);
+            fabRight  = (fabRight  - d.delta.dx).clamp(pad, size.width  - s - pad);
             fabBottom = (fabBottom - d.delta.dy).clamp(pad, size.height - s - pad);
           });
         },
@@ -262,10 +280,11 @@ class _MessagesPageState extends State<MessagesPage> {
                   child: CircleAvatar(backgroundColor: color,
                       child: Text(name[0], style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22))))),
-          Positioned(bottom: 2, right: 2,
+          Positioned(right: 0, bottom: 0,
               child: Container(width: 16, height: 16,
                   decoration: BoxDecoration(color: const Color(0xFF31A24C),
-                      shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2.5)))),
         ]),
         const SizedBox(height: 6),
         SizedBox(width: 64,
@@ -283,6 +302,7 @@ class _MessagesPageState extends State<MessagesPage> {
 
 class _SwipeableTile extends StatefulWidget {
   final _ConvData conv;
+  final bool initialUnread;
   final VoidCallback onTap;
   final VoidCallback onPin;
   final VoidCallback onArchive;
@@ -290,6 +310,7 @@ class _SwipeableTile extends StatefulWidget {
   const _SwipeableTile({
     super.key,
     required this.conv,
+    required this.initialUnread,
     required this.onTap,
     required this.onPin,
     required this.onArchive,
@@ -303,7 +324,7 @@ class _SwipeableTileState extends State<_SwipeableTile>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
-  static const double _actionW = 210.0;
+  static const double _actionW   = 210.0;
   static const double _threshold = _actionW * 0.45;
   double _drag = 0;
   bool _isOpen = false;
@@ -322,8 +343,7 @@ class _SwipeableTileState extends State<_SwipeableTile>
   void _onDragUpdate(DragUpdateDetails d) =>
       setState(() => _drag = (_drag - d.delta.dx).clamp(0.0, _actionW));
 
-  void _onDragEnd(DragEndDetails d) =>
-      _drag > _threshold ? _open() : _close();
+  void _onDragEnd(DragEndDetails d) => _drag > _threshold ? _open() : _close();
 
   void _open() {
     HapticFeedback.lightImpact();
@@ -377,7 +397,11 @@ class _SwipeableTileState extends State<_SwipeableTile>
               offset: Offset(-(_ctrl.isAnimating ? _anim.value : _drag), 0),
               child: child,
             ),
-            child: _ConvTile(conv: widget.conv, onTap: widget.onTap),
+            child: _ConvTile(
+              conv: widget.conv,
+              initialUnread: widget.initialUnread,
+              onTap: widget.onTap,
+            ),
           ),
         ]),
       ),
@@ -386,8 +410,8 @@ class _SwipeableTileState extends State<_SwipeableTile>
 
   void _moreSheet(BuildContext ctx) {
     final state = ConversationState.instance;
-    final name = widget.conv.name;
-    final isCurrentlyUnread = state.isEffectivelyUnread(name, widget.conv.isUnread);
+    final name  = widget.conv.name;
+    final isCurrentlyUnread = state.isEffectivelyUnread(name, widget.initialUnread);
 
     showModalBottomSheet(
       context: ctx,
@@ -467,9 +491,14 @@ class _ActionBtn extends StatelessWidget {
 
 class _ConvTile extends StatelessWidget {
   final _ConvData conv;
+  final bool initialUnread;
   final VoidCallback onTap;
 
-  const _ConvTile({required this.conv, required this.onTap});
+  const _ConvTile({
+    required this.conv,
+    required this.initialUnread,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -477,13 +506,20 @@ class _ConvTile extends StatelessWidget {
     final isTyping    = state.isTyping(conv.name);
     final preview     = state.getPreview(conv.name);
     final isPinned    = state.isPinned(conv.name);
-    final isUnread    = state.isEffectivelyUnread(conv.name, conv.isUnread);
+    final isUnread    = state.isEffectivelyUnread(conv.name, initialUnread);
     final showBlueDot = state.hasUnreadReply(conv.name) || state.isManuallyUnread(conv.name);
     final isReaction  = preview != null && preview.startsWith('Đã bày tỏ cảm xúc');
+    final isOnline    = state.isOnline(conv.name);
 
     final String displayMsg = isTyping
         ? ''
         : (preview != null && preview.isNotEmpty ? preview : conv.lastMessage);
+
+    // ✅ Quyết định nội dung cột ngoài cùng (timestamp hoặc chấm xanh)
+    // - showBlueDot  → chấm xanh (reply mới / đánh dấu thủ công)
+    // - isUnread     → chấm xanh (chưa đọc ban đầu)
+    // - đã đọc       → timestamp
+    final bool showDot = isUnread || showBlueDot;
 
     return Container(
       color: Colors.white,
@@ -491,115 +527,101 @@ class _ConvTile extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              // Avatar
-              Stack(children: [
-                CircleAvatar(radius: 28, backgroundColor: conv.color,
-                    child: Text(conv.name[0],
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
-                if (conv.isOnline)
-                  Positioned(right: 1, bottom: 1,
-                      child: Container(width: 15, height: 15,
-                          decoration: BoxDecoration(color: const Color(0xFF31A24C),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2)))),
-              ]),
-              const SizedBox(width: 12),
+          child: Row(children: [
+            // ── Avatar ───────────────────────────────────────────────────────
+            Stack(children: [
+              CircleAvatar(radius: 28, backgroundColor: conv.color,
+                  child: Text(conv.name[0],
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
+              if (isOnline)
+                Positioned(right: 0, bottom: 0,
+                    child: Container(width: 14, height: 14,
+                        decoration: BoxDecoration(color: const Color(0xFF31A24C),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5)))),
+            ]),
+            const SizedBox(width: 12),
 
-              // Name + preview
-              Expanded(
-                child: SizedBox(
-                  height: 56,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Expanded(
-                          child: Text(conv.name,
-                              maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: isUnread ? FontWeight.w800 : FontWeight.w500,
-                                  color: isUnread
-                                      ? const Color(0xFF050505)
-                                      : const Color(0xFF333333))),
-                        ),
-                        if (isPinned) ...[
-                          const SizedBox(width: 4),
-                          const Icon(Icons.push_pin, size: 14, color: Color(0xFF65676B)),
-                        ],
-                      ]),
-                      const SizedBox(height: 3),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // ✅ Preview area
-                          Expanded(
-                            child: isTyping
-                            // ✅ Bubble pill với 3 chấm nảy
-                                ? const _TypingPillBubble()
-                                : Row(children: [
-                              if (isReaction)
-                                const Padding(
-                                    padding: EdgeInsets.only(right: 3),
-                                    child: Icon(Icons.favorite_rounded,
-                                        size: 13, color: Color(0xFF65676B))),
-                              Expanded(
-                                child: Text(displayMsg,
-                                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 13.5,
-                                        color: isUnread
-                                            ? const Color(0xFF050505)
-                                            : const Color(0xFF65676B),
-                                        fontWeight: isUnread
-                                            ? FontWeight.w600
-                                            : FontWeight.w400,
-                                        fontStyle: isReaction
-                                            ? FontStyle.italic
-                                            : FontStyle.normal)),
-                              ),
-                            ]),
-                          ),
-
-                          // Trailing
-                          if (!isTyping) ...[
-                            const SizedBox(width: 6),
-                            if (showBlueDot)
-                              Container(width: 10, height: 10,
-                                  decoration: const BoxDecoration(
-                                      color: Color(0xFF1877F2), shape: BoxShape.circle))
-                            else
-                              Text(conv.time.isNotEmpty ? conv.time : '',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      color: isUnread
-                                          ? const Color(0xFF050505)
-                                          : const Color(0xFF65676B),
-                                      fontWeight: isUnread
-                                          ? FontWeight.w600
-                                          : FontWeight.w400)),
-                          ],
-                        ],
+            // ── Name + Preview ───────────────────────────────────────────────
+            Expanded(
+              child: SizedBox(
+                height: 56,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(
+                        child: Text(conv.name,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: isUnread ? FontWeight.w800 : FontWeight.w500,
+                                color: isUnread
+                                    ? const Color(0xFF050505)
+                                    : const Color(0xFF333333))),
                       ),
-                    ],
-                  ),
+                      if (isPinned) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.push_pin, size: 14, color: Color(0xFF65676B)),
+                      ],
+                    ]),
+                    const SizedBox(height: 3),
+
+                    // Preview — KHÔNG có trailing ở đây nữa
+                    isTyping
+                        ? const _TypingPillBubble()
+                        : Row(children: [
+                      if (isReaction)
+                        const Padding(
+                            padding: EdgeInsets.only(right: 3),
+                            child: Icon(Icons.favorite_rounded,
+                                size: 13, color: Color(0xFF65676B))),
+                      Expanded(
+                        child: Text(displayMsg,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                color: isUnread
+                                    ? const Color(0xFF050505)
+                                    : const Color(0xFF65676B),
+                                fontWeight: isUnread
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                fontStyle: isReaction
+                                    ? FontStyle.italic
+                                    : FontStyle.normal)),
+                      ),
+                    ]),
+                  ],
                 ),
               ),
+            ),
 
-              const SizedBox(width: 8),
-              if (isUnread && !showBlueDot)
-                Container(width: 10, height: 10,
+            // ✅ CỘT NGOÀI CÙNG — tất cả đều nằm đây, cùng trục dọc
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 36, // chiều rộng cố định → mọi thứ thẳng hàng
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: showDot
+                // Chấm xanh (unread / reply mới)
+                    ? Container(
+                    width: 10, height: 10,
                     decoration: const BoxDecoration(
                         color: Color(0xFF1877F2), shape: BoxShape.circle))
-              else
-                const SizedBox(width: 10),
-            ],
-          ),
+                // Timestamp (đã đọc)
+                    : Text(
+                  conv.time.isNotEmpty ? conv.time : '',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF65676B),
+                      fontWeight: FontWeight.w400),
+                ),
+              ),
+            ),
+          ]),
         ),
       ),
     );
@@ -607,7 +629,7 @@ class _ConvTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ✅ TYPING PILL BUBBLE  — giống bubble 3 chấm trong ảnh
+// TYPING PILL BUBBLE
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TypingPillBubble extends StatefulWidget {
@@ -624,22 +646,17 @@ class _TypingPillBubbleState extends State<_TypingPillBubble>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat();
+        vsync: this, duration: const Duration(milliseconds: 900))..repeat();
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   Widget _dot(double delay) {
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (_, __) {
-        final t = (_ctrl.value + delay) % 1.0;
-        // Nảy lên xuống theo trục Y
+        final t  = (_ctrl.value + delay) % 1.0;
         final dy = -(t < 0.5 ? t : 1.0 - t) * 5;
         return Transform.translate(
           offset: Offset(0, dy),
@@ -661,9 +678,7 @@ class _TypingPillBubbleState extends State<_TypingPillBubble>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFE9E9EB),
-          borderRadius: BorderRadius.circular(18),
-        ),
+            color: const Color(0xFFE9E9EB), borderRadius: BorderRadius.circular(18)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [_dot(0.0), _dot(0.33), _dot(0.66)],
@@ -679,9 +694,8 @@ class _TypingPillBubbleState extends State<_TypingPillBubble>
 
 class _ConvData {
   final String name, lastMessage, time;
-  final bool isOnline, isUnread, showTrailingDot;
-  final Color color;
+  final bool   initialOnline;
+  final Color  color;
 
-  _ConvData(this.name, this.lastMessage, this.time,
-      this.isOnline, this.isUnread, this.color, this.showTrailingDot);
+  _ConvData(this.name, this.lastMessage, this.time, this.initialOnline, this.color);
 }

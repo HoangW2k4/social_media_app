@@ -5,11 +5,62 @@ import 'package:social_media_app/screens/messages_page/chat_models.dart';
 
 class ConversationState extends ChangeNotifier {
   ConversationState._() {
-    _typingContacts.add('Phạm Thị D');
+    _initOnlineStatus();
   }
   static final ConversationState instance = ConversationState._();
 
-  // ── Thứ tự hiển thị ──────────────────────────────────────────────────────
+  // ── Khởi tạo trạng thái online ban đầu ───────────────────────────────────
+  void _initOnlineStatus() {
+    final now = DateTime.now();
+    // 3 người online ngay từ đầu, stagger nhau vài giây để có thứ tự
+    _onlineSince['Nguyễn Văn A'] = now.subtract(const Duration(seconds: 10));
+    _onlineSince['Trần Thị B']   = now.subtract(const Duration(seconds: 6));
+    _onlineSince['Phạm Thị D']   = now.subtract(const Duration(seconds: 2));
+    // Typing ban đầu
+    _typingContacts.add('Phạm Thị D');
+  }
+
+  // ── Online / Offline ──────────────────────────────────────────────────────
+  /// name → thời điểm online (để sắp xếp thứ tự trong story row)
+  final Map<String, DateTime> _onlineSince = {};
+  /// name → thời điểm offline gần nhất
+  final Map<String, DateTime> _lastSeenAt  = {};
+  /// timer chờ 3 phút rồi tự offline
+  final Map<String, Timer> _offlineTimers  = {};
+
+  bool isOnline(String name) => _onlineSince.containsKey(name);
+
+  DateTime? lastSeenAt(String name) => _lastSeenAt[name];
+
+  /// Danh sách người đang online, sắp xếp theo thứ tự online (cũ → mới)
+  List<String> get onlineContacts {
+    final entries = _onlineSince.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    return entries.map((e) => e.key).toList();
+  }
+
+  /// Đặt contact là online (huỷ timer offline nếu có)
+  void _setOnline(String name) {
+    _offlineTimers[name]?.cancel();
+    _offlineTimers.remove(name);
+    if (!_onlineSince.containsKey(name)) {
+      _onlineSince[name] = DateTime.now();
+      notifyListeners();
+    }
+  }
+
+  /// Bắt đầu đếm ngược 3 phút → offline
+  void _startOfflineCountdown(String name) {
+    _offlineTimers[name]?.cancel();
+    _offlineTimers[name] = Timer(const Duration(minutes: 3), () {
+      _lastSeenAt[name] = DateTime.now();
+      _onlineSince.remove(name);
+      _offlineTimers.remove(name);
+      notifyListeners();
+    });
+  }
+
+  // ── Thứ tự danh sách ─────────────────────────────────────────────────────
   final List<String> _order = [
     'Nguyễn Văn A', 'Trần Thị B', 'Lê Văn C', 'Phạm Thị D',
     'Hoàng Văn E', 'Vũ Thị F', 'Đặng Văn G', 'Bùi Thị H',
@@ -28,13 +79,15 @@ class ConversationState extends ChangeNotifier {
     _order.insert(insertAt, name);
   }
 
-  // ── Typing + auto-reply ──────────────────────────────────────────────────
+  // ── Typing + auto-reply ───────────────────────────────────────────────────
   final Set<String> _typingContacts = {};
   final Map<String, Timer> _replyTimers = {};
 
   bool isTyping(String name) => _typingContacts.contains(name);
 
   void scheduleReply(String contactName, String replyText) {
+    // Khi bắt đầu typing → online
+    _setOnline(contactName);
     _typingContacts.add(contactName);
     notifyListeners();
 
@@ -53,11 +106,13 @@ class ConversationState extends ChangeNotifier {
       _histories[contactName] = history;
 
       _unreadReplies.add(contactName);
-      // Khi có reply mới → cũng coi là chưa đọc thủ công
       _manualUnread.add(contactName);
 
       updateReplyPreview(contactName, replyText);
       _pushToTop(contactName);
+
+      // Sau khi reply xong → bắt đầu đếm 3 phút rồi offline
+      _startOfflineCountdown(contactName);
     });
   }
 
@@ -68,7 +123,7 @@ class ConversationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Lịch sử ─────────────────────────────────────────────────────────────
+  // ── Lịch sử ──────────────────────────────────────────────────────────────
   final Map<String, List<ChatMessage>> _histories = {};
 
   bool hasHistory(String name) => _histories.containsKey(name);
@@ -77,7 +132,7 @@ class ConversationState extends ChangeNotifier {
     _histories[name] = List.from(messages);
   }
 
-  // ── Preview ──────────────────────────────────────────────────────────────
+  // ── Preview ───────────────────────────────────────────────────────────────
   final Map<String, String> _previews = {};
 
   String? getPreview(String name) => _previews[name];
@@ -98,10 +153,10 @@ class ConversationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Đã đọc / Chưa đọc ───────────────────────────────────────────────────
-  final Set<String> _readContacts = {};
-  /// Danh sách bị đánh dấu chưa đọc THỦ CÔNG (qua menu "Khác")
-  final Set<String> _manualUnread = {};
+  // ── Đã đọc / Chưa đọc ────────────────────────────────────────────────────
+  final Set<String> _readContacts  = {};
+  final Set<String> _manualUnread  = {};
+  final Set<String> _unreadReplies = {};
 
   bool isRead(String name) =>
       _readContacts.contains(name) && !_manualUnread.contains(name);
@@ -113,24 +168,18 @@ class ConversationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// ✅ Đánh dấu chưa đọc thủ công → hiện chấm xanh + vào tab "Chưa đọc"
   void markAsUnread(String name) {
     _manualUnread.add(name);
     notifyListeners();
   }
 
   bool isManuallyUnread(String name) => _manualUnread.contains(name);
+  bool hasUnreadReply(String name)   => _unreadReplies.contains(name);
 
-  // ── Reply chưa đọc ───────────────────────────────────────────────────────
-  final Set<String> _unreadReplies = {};
-
-  bool hasUnreadReply(String name) => _unreadReplies.contains(name);
-
-  bool isEffectivelyUnread(String name, bool initialUnread) {
-    return (initialUnread && !_readContacts.contains(name)) ||
-        hasUnreadReply(name) ||
-        isManuallyUnread(name);
-  }
+  bool isEffectivelyUnread(String name, bool initialUnread) =>
+      (initialUnread && !_readContacts.contains(name)) ||
+          hasUnreadReply(name) ||
+          isManuallyUnread(name);
 
   // ── Ghim ─────────────────────────────────────────────────────────────────
   final Set<String> _pinnedContacts = {};
@@ -153,14 +202,23 @@ class ConversationState extends ChangeNotifier {
         : _archivedContacts.add(name);
     notifyListeners();
   }
+
+  // ── Helper: format last-seen ──────────────────────────────────────────────
+  /// Trả về chuỗi hiển thị trạng thái hoạt động.
+  /// Nếu đang online → "Đang hoạt động"
+  /// Nếu offline, tính từ [lastSeenAt]:
+  ///   < 1 phút  → "Vừa hoạt động"
+  ///   < 60 phút → "Hoạt động X phút trước"
+  ///   < 24 giờ  → "Hoạt động X giờ trước"
+  ///   >= 1 ngày → null (caller tự xử lý)
+  String? getActivityStatus(String name) {
+    if (isOnline(name)) return 'Đang hoạt động';
+    final seen = _lastSeenAt[name];
+    if (seen == null) return null;
+    final diff = DateTime.now().difference(seen);
+    if (diff.inMinutes < 1)  return 'Vừa hoạt động';
+    if (diff.inMinutes < 60) return 'Hoạt động ${diff.inMinutes} phút trước';
+    if (diff.inHours < 24)   return 'Hoạt động ${diff.inHours} giờ trước';
+    return null; // > 1 ngày: không hiển thị
+  }
 }
-
-
-
-
-
-
-
-
-
-

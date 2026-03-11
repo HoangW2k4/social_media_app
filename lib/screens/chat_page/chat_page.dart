@@ -1,4 +1,5 @@
 // lib/screens/chat_page/chat_page.dart
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,15 +16,6 @@ final List<String> _autoReplies = [
   'Cảm ơn bạn nhé 🙏', 'Nghe hay đó, kể thêm đi!',
   'Ừ mình cũng nghĩ vậy', 'Ok ok, để mình thử xem sao',
 ];
-
-/// Last-seen text cho từng contact (chỉ dùng khi isOnline = false)
-const Map<String, String> _lastSeen = {
-  'Lê Văn C':    'Hoạt động 30 phút trước',
-  'Hoàng Văn E': 'Hoạt động 1 giờ trước',
-  'Vũ Thị F':    'Hoạt động 3 giờ trước',
-  'Đặng Văn G':  'Hoạt động 5 giờ trước',
-  'Bùi Thị H':   'Hoạt động 1 ngày trước',
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SEED DATA
@@ -103,14 +95,12 @@ final Map<String, List<Map<String, dynamic>>> _seeds = {
 
 class ChatPage extends StatefulWidget {
   final String contactName;
-  final Color contactColor;
-  final bool isOnline;
+  final Color  contactColor;
 
   const ChatPage({
     super.key,
     required this.contactName,
     required this.contactColor,
-    required this.isOnline,
   });
 
   @override
@@ -118,14 +108,15 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
-  final TextEditingController _inputCtrl = TextEditingController();
-  final ScrollController _scrollCtrl = ScrollController();
-  final FocusNode _focusNode = FocusNode();
+  final TextEditingController _inputCtrl  = TextEditingController();
+  final ScrollController      _scrollCtrl = ScrollController();
+  final FocusNode             _focusNode  = FocusNode();
 
   late List<ChatMessage> _messages;
   bool _isTyping = false;
   late AnimationController _sendBtnCtrl;
   String? _activeReactionMsgId;
+  Timer? _subtitleTimer;
 
   @override
   void initState() {
@@ -138,6 +129,9 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     _inputCtrl.addListener(_onInputChanged);
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _scrollToBottom(animated: false));
+    _subtitleTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _loadConversation() {
@@ -146,8 +140,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       _messages = state.getHistory(widget.contactName);
     } else {
       final seed = _seeds[widget.contactName] ?? [];
-      final now = DateTime.now();
-      _messages = seed.asMap().entries.map((e) {
+      final now  = DateTime.now();
+      _messages  = seed.asMap().entries.map((e) {
         final minsAgo = (seed.length - e.key) * 3;
         return ChatMessage(
           id: 'seed_${e.key}',
@@ -162,8 +156,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
   void _onStateChange() {
     if (!mounted) return;
-    final state = ConversationState.instance;
-    final newTyping = state.isTyping(widget.contactName);
+    final state        = ConversationState.instance;
+    final newTyping    = state.isTyping(widget.contactName);
     final stateHistory = state.getHistory(widget.contactName);
     setState(() {
       _isTyping = newTyping;
@@ -174,12 +168,12 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     });
   }
 
-  void _persistHistory() {
-    ConversationState.instance.saveHistory(widget.contactName, _messages);
-  }
+  void _persistHistory() =>
+      ConversationState.instance.saveHistory(widget.contactName, _messages);
 
   @override
   void dispose() {
+    _subtitleTimer?.cancel();
     ConversationState.instance.removeListener(_onStateChange);
     _persistHistory();
     _inputCtrl.dispose();
@@ -204,8 +198,6 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       _scrollCtrl.jumpTo(target);
     }
   }
-
-  // ── Reaction ──────────────────────────────────────────────────────────────
 
   void _onLongPressMessage(String msgId) {
     HapticFeedback.mediumImpact();
@@ -236,22 +228,14 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       final idx = _messages.indexWhere((m) => m.id == msgId);
       if (idx == -1) return;
       final reactions = Map<String, int>.from(_messages[idx].reactions);
-      final current = reactions[emoji] ?? 0;
-      if (current <= 1) {
-        reactions.remove(emoji);
-      } else {
-        reactions[emoji] = current - 1;
-      }
+      final current   = reactions[emoji] ?? 0;
+      if (current <= 1) reactions.remove(emoji); else reactions[emoji] = current - 1;
       _messages[idx] = _messages[idx].copyWith(reactions: reactions);
-      final lastTheirMsg = _messages.lastWhere(
-              (m) => !m.isMe, orElse: () => _messages.last);
-      ConversationState.instance.restoreLastMessagePreview(
-          widget.contactName, lastTheirMsg.text);
+      final last = _messages.lastWhere((m) => !m.isMe, orElse: () => _messages.last);
+      ConversationState.instance.restoreLastMessagePreview(widget.contactName, last.text);
       _persistHistory();
     });
   }
-
-  // ── Send ──────────────────────────────────────────────────────────────────
 
   Future<void> _sendMessage() async {
     final text = _inputCtrl.text.trim();
@@ -263,31 +247,22 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       text: text, isMe: true,
       time: DateTime.now(), status: MessageStatus.sending,
     );
-    setState(() {
-      _messages.add(msg);
-      _inputCtrl.clear();
-    });
+    setState(() { _messages.add(msg); _inputCtrl.clear(); });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() {
       final idx = _messages.indexWhere((m) => m.id == msg.id);
-      if (idx != -1) {
-        _messages[idx] = msg.copyWith(status: MessageStatus.sent);
-      }
+      if (idx != -1) _messages[idx] = msg.copyWith(status: MessageStatus.sent);
     });
-
     _persistHistory();
 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
-
     final reply = _autoReplies[Random().nextInt(_autoReplies.length)];
     ConversationState.instance.scheduleReply(widget.contactName, reply);
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -300,91 +275,76 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             _focusNode.unfocus();
           },
           behavior: HitTestBehavior.translucent,
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(child: _buildMessageList()),
-              if (_isTyping) _buildTypingRow(),
-              _buildInputBar(),
-            ],
-          ),
+          child: Column(children: [
+            _buildHeader(),
+            Expanded(child: _buildMessageList()),
+            if (_isTyping) _buildTypingRow(),
+            _buildInputBar(),
+          ]),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    // ✅ Subtitle: luôn hiện trạng thái online/last-seen, KHÔNG hiện "Đang nhập"
-    final String subtitle;
-    if (widget.isOnline) {
-      subtitle = 'Đang hoạt động';
-    } else {
-      // Last-seen text hoặc fallback generic
-      subtitle = _lastSeen[widget.contactName] ?? 'Hoạt động 2 giờ trước';
-    }
+    final state          = ConversationState.instance;
+    final isOnline       = state.isOnline(widget.contactName);
+    final activityStatus = state.getActivityStatus(widget.contactName);
+    final subtitle       = activityStatus ?? 'Không hoạt động gần đây';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFF0F2F5))),
-        boxShadow: [BoxShadow(
-            color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
       ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF1877F2), size: 22),
-            onPressed: () => Navigator.of(context).pop(),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-          const SizedBox(width: 4),
-          Stack(children: [
-            CircleAvatar(
+      child: Row(children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF1877F2), size: 22),
+          onPressed: () => Navigator.of(context).pop(),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        ),
+        const SizedBox(width: 4),
+        Stack(children: [
+          CircleAvatar(
               radius: 22, backgroundColor: widget.contactColor,
               child: Text(widget.contactName[0],
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18)),
-            ),
-            if (widget.isOnline)
-              Positioned(right: 1, bottom: 1,
-                  child: Container(width: 13, height: 13,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFF31A24C),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2)))),
-          ]),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(widget.contactName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: Color(0xFF050505))),
-                const SizedBox(height: 1),
-                // ✅ Subtitle không đổi khi typing — chỉ đổi màu nếu online
-                Text(subtitle,
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: widget.isOnline
-                            ? const Color(0xFF31A24C)
-                            : const Color(0xFF65676B))),
-              ],
-            ),
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
+          // ✅ FIX: right: 0, bottom: 0 — căn góc chuẩn, size 12, border 2.5
+          if (isOnline)
+            Positioned(right: 0, bottom: 0,
+                child: Container(width: 12, height: 12,
+                    decoration: BoxDecoration(color: const Color(0xFF31A24C),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5)))),
+        ]),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.contactName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF050505))),
+              const SizedBox(height: 1),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isOnline
+                          ? const Color(0xFF31A24C)
+                          : const Color(0xFF65676B))),
+            ],
           ),
-          _headerAction(Icons.phone_rounded),
-          _headerAction(Icons.videocam_rounded),
-          _headerAction(Icons.info_outline_rounded),
-        ],
-      ),
+        ),
+        _headerAction(Icons.phone_rounded),
+        _headerAction(Icons.videocam_rounded),
+        _headerAction(Icons.info_outline_rounded),
+      ]),
     );
   }
 
@@ -392,8 +352,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     return Container(
       width: 36, height: 36,
       margin: const EdgeInsets.only(left: 4),
-      decoration: const BoxDecoration(
-          color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+      decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
       child: IconButton(
           padding: EdgeInsets.zero,
           icon: Icon(icon, size: 20, color: const Color(0xFF1877F2)),
@@ -408,15 +367,14 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       itemCount: _messages.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) return _buildDateLabel('Hôm nay');
-        final msg = _messages[index - 1];
+        final msg  = _messages[index - 1];
         final prev = index > 1 ? _messages[index - 2] : null;
         final next = index < _messages.length ? _messages[index] : null;
-        final showAvatar = !msg.isMe && (next == null || next.isMe != msg.isMe);
-        final isFirst = prev == null || prev.isMe != msg.isMe;
-        final isLast = next == null || next.isMe != msg.isMe;
         return _buildBubbleRow(
-          msg: msg, isFirst: isFirst, isLast: isLast,
-          showAvatar: showAvatar,
+          msg: msg,
+          isFirst: prev == null || prev.isMe != msg.isMe,
+          isLast:  next == null || next.isMe != msg.isMe,
+          showAvatar: !msg.isMe && (next == null || next.isMe != msg.isMe),
           isReactionOpen: _activeReactionMsgId == msg.id,
         );
       },
@@ -430,13 +388,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-              color: const Color(0xFFF0F2F5),
-              borderRadius: BorderRadius.circular(12)),
+              color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(12)),
           child: Text(label,
               style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF65676B),
-                  fontWeight: FontWeight.w500)),
+                  fontSize: 12, color: Color(0xFF65676B), fontWeight: FontWeight.w500)),
         ),
       ),
     );
@@ -449,17 +404,15 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     required bool showAvatar,
     required bool isReactionOpen,
   }) {
-    final isMe = msg.isMe;
-    const r = Radius.circular(18);
-    const rSmall = Radius.circular(4);
+    final isMe         = msg.isMe;
+    const r            = Radius.circular(18);
+    const rSmall       = Radius.circular(4);
     final hasReactions = msg.reactions.isNotEmpty;
 
-    final borderRadius = isMe
-        ? BorderRadius.only(
-        topLeft: r, topRight: isFirst ? r : rSmall,
+    final br = isMe
+        ? BorderRadius.only(topLeft: r, topRight: isFirst ? r : rSmall,
         bottomRight: isLast ? rSmall : rSmall, bottomLeft: r)
-        : BorderRadius.only(
-        topLeft: isFirst ? r : rSmall, topRight: r,
+        : BorderRadius.only(topLeft: isFirst ? r : rSmall, topRight: r,
         bottomLeft: isLast ? rSmall : rSmall, bottomRight: r);
 
     return Padding(
@@ -472,24 +425,18 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            SizedBox(
-              width: 32,
-              child: showAvatar
-                  ? CircleAvatar(
-                  radius: 14, backgroundColor: widget.contactColor,
-                  child: Text(widget.contactName[0],
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold)))
-                  : null,
-            ),
+            SizedBox(width: 32,
+                child: showAvatar
+                    ? CircleAvatar(radius: 14, backgroundColor: widget.contactColor,
+                    child: Text(widget.contactName[0],
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)))
+                    : null),
             const SizedBox(width: 6),
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 if (isReactionOpen) _buildReactionPicker(msg.id, isMe),
                 GestureDetector(
@@ -497,16 +444,12 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   child: Container(
                     constraints: BoxConstraints(
                         maxWidth: MediaQuery.of(context).size.width * 0.68),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isMe
-                          ? const Color(0xFF1877F2)
-                          : const Color(0xFFF0F2F5),
-                      borderRadius: borderRadius,
+                      color: isMe ? const Color(0xFF1877F2) : const Color(0xFFF0F2F5),
+                      borderRadius: br,
                       boxShadow: isMe
-                          ? [BoxShadow(
-                          color: const Color(0xFF1877F2).withValues(alpha: 0.2),
+                          ? [BoxShadow(color: const Color(0xFF1877F2).withValues(alpha: 0.2),
                           blurRadius: 6, offset: const Offset(0, 2))]
                           : [],
                     ),
@@ -549,12 +492,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: Colors.white, borderRadius: BorderRadius.circular(32),
-            boxShadow: [BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14),
                 blurRadius: 20, spreadRadius: 1, offset: const Offset(0, 4))],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(mainAxisSize: MainAxisSize.min,
             children: List.generate(_reactionEmojis.length, (i) {
               final emoji = _reactionEmojis[i];
               return GestureDetector(
@@ -566,10 +507,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   builder: (_, v, __) => Transform.scale(
                     scale: v,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 2),
-                      child: Text(emoji,
-                          style: const TextStyle(fontSize: 26)),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
                     ),
                   ),
                 ),
@@ -591,21 +530,16 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFE7F3FF),
-              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFFE7F3FF), borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: const Color(0xFF1877F2).withValues(alpha: 0.35),
-                  width: 1),
+                  color: const Color(0xFF1877F2).withValues(alpha: 0.35), width: 1),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Text(entry.key, style: const TextStyle(fontSize: 15)),
               if (entry.value > 1) ...[
                 const SizedBox(width: 3),
-                Text('${entry.value}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF1877F2),
-                        fontWeight: FontWeight.w700)),
+                Text('${entry.value}', style: const TextStyle(
+                    fontSize: 12, color: Color(0xFF1877F2), fontWeight: FontWeight.w700)),
               ],
             ]),
           ),
@@ -627,16 +561,12 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             style: TextStyle(fontSize: 11, color: Color(0xFF65676B)));
       case MessageStatus.seen:
         return Row(mainAxisSize: MainAxisSize.min, children: [
-          CircleAvatar(
-              radius: 8, backgroundColor: widget.contactColor,
+          CircleAvatar(radius: 8, backgroundColor: widget.contactColor,
               child: Text(widget.contactName[0],
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold))),
+                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
           const SizedBox(width: 4),
-          const Text('Đã xem',
-              style: TextStyle(fontSize: 11, color: Color(0xFF65676B))),
+          const Text('Đã xem', style: TextStyle(fontSize: 11, color: Color(0xFF65676B))),
         ]);
     }
   }
@@ -645,13 +575,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        CircleAvatar(
-            radius: 14, backgroundColor: widget.contactColor,
+        CircleAvatar(radius: 14, backgroundColor: widget.contactColor,
             child: Text(widget.contactName[0],
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold))),
+                    color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
         const SizedBox(width: 8),
         const _TypingBubble(),
       ]),
@@ -665,110 +592,86 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(top: BorderSide(color: Color(0xFFF0F2F5)))),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _inputIcon(Icons.add_circle_outline_rounded),
-          _inputIcon(Icons.camera_alt_outlined),
-          _inputIcon(Icons.image_outlined),
-          _inputIcon(Icons.mic_none_rounded),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 120),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFF0F2F5),
-                  borderRadius: BorderRadius.circular(22)),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inputCtrl,
-                    focusNode: _focusNode,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    style: const TextStyle(
-                        fontSize: 15, color: Color(0xFF050505)),
-                    decoration: const InputDecoration(
-                      hintText: 'Aa',
-                      hintStyle: TextStyle(
-                          color: Color(0xFF65676B), fontSize: 15),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        _inputIcon(Icons.add_circle_outline_rounded),
+        _inputIcon(Icons.camera_alt_outlined),
+        _inputIcon(Icons.image_outlined),
+        _inputIcon(Icons.mic_none_rounded),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 120),
+            decoration: BoxDecoration(
+                color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(22)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Expanded(
+                child: TextField(
+                  controller: _inputCtrl, focusNode: _focusNode,
+                  maxLines: null, keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(fontSize: 15, color: Color(0xFF050505)),
+                  decoration: const InputDecoration(
+                    hintText: 'Aa',
+                    hintStyle: TextStyle(color: Color(0xFF65676B), fontSize: 15),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   ),
+                  onSubmitted: (_) => _sendMessage(),
                 ),
-                const Padding(
-                  padding: EdgeInsets.only(right: 6, bottom: 6),
-                  child: Text('😊', style: TextStyle(fontSize: 20)),
-                ),
-              ]),
-            ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(right: 6, bottom: 6),
+                child: Text('😊', style: TextStyle(fontSize: 20)),
+              ),
+            ]),
           ),
-          const SizedBox(width: 8),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 150),
-            transitionBuilder: (child, anim) =>
-                ScaleTransition(scale: anim, child: child),
-            child: hasText ? _sendButton() : _likeButton(),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+          child: hasText ? _sendButton() : _likeButton(),
+        ),
+      ]),
     );
   }
 
-  Widget _inputIcon(IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
-      child: Icon(icon, color: const Color(0xFF1877F2), size: 26),
-    );
-  }
+  Widget _inputIcon(IconData icon) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+    child: Icon(icon, color: const Color(0xFF1877F2), size: 26),
+  );
 
-  Widget _sendButton() {
-    return GestureDetector(
-      key: const ValueKey('send'), onTap: _sendMessage,
-      child: Container(
-        width: 38, height: 38,
+  Widget _sendButton() => GestureDetector(
+    key: const ValueKey('send'), onTap: _sendMessage,
+    child: Container(width: 38, height: 38,
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
-              colors: [Color(0xFF00C6FF), Color(0xFF1877F2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight),
-          boxShadow: [BoxShadow(
-              color: Color(0x331877F2), blurRadius: 8, offset: Offset(0, 3))],
+          gradient: LinearGradient(colors: [Color(0xFF00C6FF), Color(0xFF1877F2)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight),
+          boxShadow: [BoxShadow(color: Color(0x331877F2), blurRadius: 8, offset: Offset(0, 3))],
         ),
-        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-      ),
-    );
-  }
+        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
+  );
 
-  Widget _likeButton() {
-    return GestureDetector(
-      key: const ValueKey('like'),
-      onTap: () {
-        setState(() {
-          _messages.add(ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            text: '👍', isMe: true,
-            time: DateTime.now(), status: MessageStatus.sent,
-          ));
-        });
-        WidgetsBinding.instance
-            .addPostFrameCallback((_) => _scrollToBottom());
-      },
-      child: const SizedBox(
-          width: 38, height: 38,
-          child: Center(
-              child: Text('👍', style: TextStyle(fontSize: 26)))),
-    );
-  }
+  Widget _likeButton() => GestureDetector(
+    key: const ValueKey('like'),
+    onTap: () {
+      setState(() {
+        _messages.add(ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          text: '👍', isMe: true,
+          time: DateTime.now(), status: MessageStatus.sent,
+        ));
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    },
+    child: const SizedBox(width: 38, height: 38,
+        child: Center(child: Text('👍', style: TextStyle(fontSize: 26)))),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPING BUBBLE (trong chat)
+// TYPING BUBBLE
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TypingBubble extends StatefulWidget {
@@ -798,14 +701,11 @@ class _TypingBubbleState extends State<_TypingBubble>
       decoration: const BoxDecoration(
         color: Color(0xFFF0F2F5),
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(4),
-          topRight: Radius.circular(18),
-          bottomRight: Radius.circular(18),
-          bottomLeft: Radius.circular(18),
+          topLeft: Radius.circular(4), topRight: Radius.circular(18),
+          bottomRight: Radius.circular(18), bottomLeft: Radius.circular(18),
         ),
       ),
-      child: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: Row(mainAxisSize: MainAxisSize.min,
           children: [_dot(0.0), _dot(0.3), _dot(0.6)]),
     );
   }
@@ -814,7 +714,7 @@ class _TypingBubbleState extends State<_TypingBubble>
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (_, __) {
-        final t = (_ctrl.value + delay) % 1.0;
+        final t     = (_ctrl.value + delay) % 1.0;
         final scale = 1.0 + (t < 0.5 ? t : 1.0 - t) * 0.7;
         return Container(
           width: 8 * scale, height: 8 * scale,
