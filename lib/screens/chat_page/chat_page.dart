@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:social_media_app/providers/language_provider.dart';
 import 'package:social_media_app/screens/messages_page/chat_models.dart';
 import 'package:social_media_app/screens/messages_page/conversation_state.dart';
 
@@ -266,6 +268,9 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Đọc ngôn ngữ hiện tại — rebuild tự động khi user đổi ngôn ngữ
+    final isEn = context.watch<LanguageProvider>().locale.languageCode == 'en';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -276,8 +281,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           },
           behavior: HitTestBehavior.translucent,
           child: Column(children: [
-            _buildHeader(),
-            Expanded(child: _buildMessageList()),
+            _buildHeader(isEn),
+            Expanded(child: _buildMessageList(isEn)),
             if (_isTyping) _buildTypingRow(),
             _buildInputBar(),
           ]),
@@ -286,11 +291,18 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildHeader() {
+  // ✅ 5 người có story bubble trong header
+  static const Set<String> _storyContacts = {
+    'Nguyễn Văn A', 'Trần Thị B', 'Lê Văn C', 'Phạm Thị D', 'Hoàng Văn E',
+  };
+
+  Widget _buildHeader(bool isEn) {
     final state          = ConversationState.instance;
     final isOnline       = state.isOnline(widget.contactName);
-    final activityStatus = state.getActivityStatus(widget.contactName);
-    final subtitle       = activityStatus ?? 'Không hoạt động gần đây';
+    final hasStory       = _storyContacts.contains(widget.contactName);
+    final activityStatus = state.getActivityStatus(widget.contactName, isEn: isEn);
+    final subtitle       = activityStatus
+        ?? (isEn ? 'Not recently active' : 'Không hoạt động gần đây');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -309,12 +321,31 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         ),
         const SizedBox(width: 4),
         Stack(children: [
-          CircleAvatar(
+          // ✅ Có story → viền xanh bao ngoài avatar
+          if (hasStory)
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF0084FF), width: 2.5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  backgroundColor: widget.contactColor,
+                  child: Text(widget.contactName[0],
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+              ),
+            )
+          else
+            CircleAvatar(
               radius: 22, backgroundColor: widget.contactColor,
               child: Text(widget.contactName[0],
                   style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
-          // ✅ FIX: right: 0, bottom: 0 — căn góc chuẩn, size 12, border 2.5
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
           if (isOnline)
             Positioned(right: 0, bottom: 0,
                 child: Container(width: 12, height: 12,
@@ -360,13 +391,13 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMessageList() {
+  Widget _buildMessageList(bool isEn) {
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       itemCount: _messages.length + 1,
       itemBuilder: (context, index) {
-        if (index == 0) return _buildDateLabel('Hôm nay');
+        if (index == 0) return _buildDateLabel(isEn ? 'Today' : 'Hôm nay');
         final msg  = _messages[index - 1];
         final prev = index > 1 ? _messages[index - 2] : null;
         final next = index < _messages.length ? _messages[index] : null;
@@ -376,6 +407,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           isLast:  next == null || next.isMe != msg.isMe,
           showAvatar: !msg.isMe && (next == null || next.isMe != msg.isMe),
           isReactionOpen: _activeReactionMsgId == msg.id,
+          isEn: isEn,
         );
       },
     );
@@ -403,6 +435,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     required bool isLast,
     required bool showAvatar,
     required bool isReactionOpen,
+    required bool isEn,
   }) {
     final isMe         = msg.isMe;
     const r            = Radius.circular(18);
@@ -465,7 +498,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                 ],
                 if (isMe && isLast) ...[
                   const SizedBox(height: 3),
-                  _buildStatusRow(msg.status),
+                  _buildStatusRow(msg.status, isEn),
                 ],
               ],
             ),
@@ -548,17 +581,24 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatusRow(MessageStatus status) {
+  // ✅ Trạng thái tin nhắn cũng được dịch
+  Widget _buildStatusRow(MessageStatus status, bool isEn) {
     switch (status) {
       case MessageStatus.sending:
-        return const Text('Đang gửi...',
-            style: TextStyle(fontSize: 11, color: Color(0xFF65676B)));
+        return Text(
+          isEn ? 'Sending...' : 'Đang gửi...',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF65676B)),
+        );
       case MessageStatus.sent:
-        return const Text('Đã gửi',
-            style: TextStyle(fontSize: 11, color: Color(0xFF65676B)));
+        return Text(
+          isEn ? 'Sent' : 'Đã gửi',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF65676B)),
+        );
       case MessageStatus.delivered:
-        return const Text('Đã nhận',
-            style: TextStyle(fontSize: 11, color: Color(0xFF65676B)));
+        return Text(
+          isEn ? 'Delivered' : 'Đã nhận',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF65676B)),
+        );
       case MessageStatus.seen:
         return Row(mainAxisSize: MainAxisSize.min, children: [
           CircleAvatar(radius: 8, backgroundColor: widget.contactColor,
@@ -566,7 +606,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   style: const TextStyle(
                       color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
           const SizedBox(width: 4),
-          const Text('Đã xem', style: TextStyle(fontSize: 11, color: Color(0xFF65676B))),
+          Text(
+            isEn ? 'Seen' : 'Đã xem',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF65676B)),
+          ),
         ]);
     }
   }

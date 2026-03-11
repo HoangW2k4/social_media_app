@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:social_media_app/screens/chat_page/chat_page.dart';
+import 'package:provider/provider.dart';
+import 'package:social_media_app/providers/language_provider.dart';
 import 'conversation_state.dart';
 
 class MessagesPage extends StatefulWidget {
@@ -16,6 +18,15 @@ class _MessagesPageState extends State<MessagesPage> {
   double fabRight = 16;
   double fabBottom = 16;
   String _selectedFilter = 'all';
+
+  // 5 người có story ring trên avatar trong list
+  static const Set<String> _storyContacts = {
+    'Nguyễn Văn A',
+    'Trần Thị B',
+    'Lê Văn C',
+    'Phạm Thị D',
+    'Hoàng Văn E',
+  };
 
   final Map<String, _ConvData> _convMap = {
     'Nguyễn Văn A': _ConvData('Nguyễn Văn A', 'Hẹn gặp lại nhé! 👋',  '2m',  true,  Colors.blue),
@@ -67,16 +78,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
         final archivedCount = ordered.where((c) => state.isArchived(c.name)).length;
 
-        final onlineNames = state.onlineContacts
-            .where((n) => _convMap.containsKey(n))
-            .toList();
-
         return Scaffold(
           body: SafeArea(
             child: Stack(children: [
               Column(children: [
                 _buildSearchBar(t),
-                _buildStoryRow(onlineNames),
+                _buildStoryRow(),
                 _buildFilterRow(),
                 Expanded(
                   child: filtered.isEmpty
@@ -90,6 +97,7 @@ class _MessagesPageState extends State<MessagesPage> {
                         key: ValueKey(filtered[i].name),
                         conv: filtered[i],
                         initialUnread: _initialUnread[filtered[i].name] ?? false,
+                        hasStory: _storyContacts.contains(filtered[i].name),
                         onTap: () => _openChat(filtered[i]),
                         onPin: () => state.togglePin(filtered[i].name),
                         onArchive: () => state.toggleArchive(filtered[i].name),
@@ -165,7 +173,16 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
-  Widget _buildStoryRow(List<String> onlineNames) {
+  // ✅ Story row: CHỈ hiện người trong _storyContacts VÀ đang online
+  Widget _buildStoryRow() {
+    final state = ConversationState.instance;
+
+    // Lấy danh sách online, lọc chỉ giữ người thuộc _storyContacts
+    // state.onlineContacts đã sắp xếp theo thứ tự online (cũ → mới)
+    final onlineStory = state.onlineContacts
+        .where((n) => _storyContacts.contains(n) && _convMap.containsKey(n))
+        .toList();
+
     return SizedBox(
       height: 96,
       child: ListView(
@@ -173,25 +190,22 @@ class _MessagesPageState extends State<MessagesPage> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         children: [
           _createStory(),
-          ...onlineNames.map((name) {
-            final conv = _convMap[name];
-            if (conv == null) return const SizedBox.shrink();
-            return _storyItem(conv.name, conv.color);
-          }),
+          ...onlineStory.map((name) => _storyItem(name, _convMap[name]!.color)),
         ],
       ),
     );
   }
 
   Widget _buildFilterRow() {
+    final isEn = context.watch<LanguageProvider>().locale.languageCode == 'en';
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       child: Row(children: [
-        _chip('Tất cả', 'all'),
+        _chip(isEn ? 'All' : 'Tất cả', 'all'),
         const SizedBox(width: 8),
-        _chip('Chưa đọc', 'unread'),
+        _chip(isEn ? 'Unread' : 'Chưa đọc', 'unread'),
         const SizedBox(width: 8),
-        _chip('Nhóm', 'groups'),
+        _chip(isEn ? 'Groups' : 'Nhóm', 'groups'),
         const Spacer(),
         const Icon(Icons.more_horiz, color: Color(0xFF65676B)),
       ]),
@@ -268,30 +282,43 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
+  // Story item: luôn có viền xanh + chấm online (vì chỉ render khi online)
   Widget _storyItem(String name, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Column(children: [
-        Stack(children: [
-          Container(width: 60, height: 60,
-              decoration: BoxDecoration(shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0084FF), width: 2.5)),
-              child: Padding(padding: const EdgeInsets.all(2),
-                  child: CircleAvatar(backgroundColor: color,
-                      child: Text(name[0], style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22))))),
-          Positioned(right: 0, bottom: 0,
-              child: Container(width: 16, height: 16,
-                  decoration: BoxDecoration(color: const Color(0xFF31A24C),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5)))),
+    return GestureDetector(
+      onTap: () { final conv = _convMap[name]; if (conv != null) _openChat(conv); },
+      child: Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Column(children: [
+          Stack(children: [
+            Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF0084FF), width: 2.5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  backgroundColor: color,
+                  child: Text(name[0], style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
+                ),
+              ),
+            ),
+            // Luôn có chấm online vì chỉ xuất hiện khi online
+            Positioned(right: 0, bottom: 0,
+                child: Container(width: 16, height: 16,
+                    decoration: BoxDecoration(color: const Color(0xFF31A24C),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5)))),
+          ]),
+          const SizedBox(height: 6),
+          SizedBox(width: 64,
+              child: Text(name.split(' ').last, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87))),
         ]),
-        const SizedBox(height: 6),
-        SizedBox(width: 64,
-            child: Text(name.split(' ').last, maxLines: 1, overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.black87))),
-      ]),
+      ),
     );
   }
 }
@@ -303,6 +330,7 @@ class _MessagesPageState extends State<MessagesPage> {
 class _SwipeableTile extends StatefulWidget {
   final _ConvData conv;
   final bool initialUnread;
+  final bool hasStory;
   final VoidCallback onTap;
   final VoidCallback onPin;
   final VoidCallback onArchive;
@@ -311,6 +339,7 @@ class _SwipeableTile extends StatefulWidget {
     super.key,
     required this.conv,
     required this.initialUnread,
+    required this.hasStory,
     required this.onTap,
     required this.onPin,
     required this.onArchive,
@@ -400,6 +429,7 @@ class _SwipeableTileState extends State<_SwipeableTile>
             child: _ConvTile(
               conv: widget.conv,
               initialUnread: widget.initialUnread,
+              hasStory: widget.hasStory,
               onTap: widget.onTap,
             ),
           ),
@@ -492,11 +522,13 @@ class _ActionBtn extends StatelessWidget {
 class _ConvTile extends StatelessWidget {
   final _ConvData conv;
   final bool initialUnread;
+  final bool hasStory;
   final VoidCallback onTap;
 
   const _ConvTile({
     required this.conv,
     required this.initialUnread,
+    required this.hasStory,
     required this.onTap,
   });
 
@@ -510,16 +542,11 @@ class _ConvTile extends StatelessWidget {
     final showBlueDot = state.hasUnreadReply(conv.name) || state.isManuallyUnread(conv.name);
     final isReaction  = preview != null && preview.startsWith('Đã bày tỏ cảm xúc');
     final isOnline    = state.isOnline(conv.name);
+    final bool showDot = isUnread || showBlueDot;
 
     final String displayMsg = isTyping
         ? ''
         : (preview != null && preview.isNotEmpty ? preview : conv.lastMessage);
-
-    // ✅ Quyết định nội dung cột ngoài cùng (timestamp hoặc chấm xanh)
-    // - showBlueDot  → chấm xanh (reply mới / đánh dấu thủ công)
-    // - isUnread     → chấm xanh (chưa đọc ban đầu)
-    // - đã đọc       → timestamp
-    final bool showDot = isUnread || showBlueDot;
 
     return Container(
       color: Colors.white,
@@ -528,12 +555,37 @@ class _ConvTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [
+
             // ── Avatar ───────────────────────────────────────────────────────
             Stack(children: [
-              CircleAvatar(radius: 28, backgroundColor: conv.color,
+              if (hasStory)
+              // Có story: viền xanh luôn hiển thị
+                Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF0084FF), width: 2.5),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: CircleAvatar(
+                      backgroundColor: conv.color,
+                      child: Text(conv.name[0],
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                )
+              else
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: conv.color,
                   child: Text(conv.name[0],
                       style: const TextStyle(
-                          color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
+                          color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                ),
+
+              // Chấm online xanh lá
               if (isOnline)
                 Positioned(right: 0, bottom: 0,
                     child: Container(width: 14, height: 14,
@@ -541,6 +593,7 @@ class _ConvTile extends StatelessWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2.5)))),
             ]),
+
             const SizedBox(width: 12),
 
             // ── Name + Preview ───────────────────────────────────────────────
@@ -568,8 +621,6 @@ class _ConvTile extends StatelessWidget {
                       ],
                     ]),
                     const SizedBox(height: 3),
-
-                    // Preview — KHÔNG có trailing ở đây nữa
                     isTyping
                         ? const _TypingPillBubble()
                         : Row(children: [
@@ -599,26 +650,21 @@ class _ConvTile extends StatelessWidget {
               ),
             ),
 
-            // ✅ CỘT NGOÀI CÙNG — tất cả đều nằm đây, cùng trục dọc
+            // ── Cột ngoài cùng ───────────────────────────────────────────────
             const SizedBox(width: 8),
             SizedBox(
-              width: 36, // chiều rộng cố định → mọi thứ thẳng hàng
+              width: 36,
               child: Align(
                 alignment: Alignment.centerRight,
                 child: showDot
-                // Chấm xanh (unread / reply mới)
-                    ? Container(
-                    width: 10, height: 10,
+                    ? Container(width: 10, height: 10,
                     decoration: const BoxDecoration(
                         color: Color(0xFF1877F2), shape: BoxShape.circle))
-                // Timestamp (đã đọc)
-                    : Text(
-                  conv.time.isNotEmpty ? conv.time : '',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF65676B),
-                      fontWeight: FontWeight.w400),
-                ),
+                    : Text(conv.time.isNotEmpty ? conv.time : '',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF65676B),
+                        fontWeight: FontWeight.w400)),
               ),
             ),
           ]),

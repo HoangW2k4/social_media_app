@@ -12,34 +12,26 @@ class ConversationState extends ChangeNotifier {
   // ── Khởi tạo trạng thái online ban đầu ───────────────────────────────────
   void _initOnlineStatus() {
     final now = DateTime.now();
-    // 3 người online ngay từ đầu, stagger nhau vài giây để có thứ tự
     _onlineSince['Nguyễn Văn A'] = now.subtract(const Duration(seconds: 10));
     _onlineSince['Trần Thị B']   = now.subtract(const Duration(seconds: 6));
     _onlineSince['Phạm Thị D']   = now.subtract(const Duration(seconds: 2));
-    // Typing ban đầu
     _typingContacts.add('Phạm Thị D');
   }
 
   // ── Online / Offline ──────────────────────────────────────────────────────
-  /// name → thời điểm online (để sắp xếp thứ tự trong story row)
   final Map<String, DateTime> _onlineSince = {};
-  /// name → thời điểm offline gần nhất
   final Map<String, DateTime> _lastSeenAt  = {};
-  /// timer chờ 3 phút rồi tự offline
-  final Map<String, Timer> _offlineTimers  = {};
+  final Map<String, Timer>    _offlineTimers = {};
 
   bool isOnline(String name) => _onlineSince.containsKey(name);
-
   DateTime? lastSeenAt(String name) => _lastSeenAt[name];
 
-  /// Danh sách người đang online, sắp xếp theo thứ tự online (cũ → mới)
   List<String> get onlineContacts {
     final entries = _onlineSince.entries.toList()
       ..sort((a, b) => a.value.compareTo(b.value));
     return entries.map((e) => e.key).toList();
   }
 
-  /// Đặt contact là online (huỷ timer offline nếu có)
   void _setOnline(String name) {
     _offlineTimers[name]?.cancel();
     _offlineTimers.remove(name);
@@ -49,7 +41,6 @@ class ConversationState extends ChangeNotifier {
     }
   }
 
-  /// Bắt đầu đếm ngược 3 phút → offline
   void _startOfflineCountdown(String name) {
     _offlineTimers[name]?.cancel();
     _offlineTimers[name] = Timer(const Duration(minutes: 3), () {
@@ -80,13 +71,12 @@ class ConversationState extends ChangeNotifier {
   }
 
   // ── Typing + auto-reply ───────────────────────────────────────────────────
-  final Set<String> _typingContacts = {};
-  final Map<String, Timer> _replyTimers = {};
+  final Set<String>        _typingContacts = {};
+  final Map<String, Timer> _replyTimers    = {};
 
   bool isTyping(String name) => _typingContacts.contains(name);
 
   void scheduleReply(String contactName, String replyText) {
-    // Khi bắt đầu typing → online
     _setOnline(contactName);
     _typingContacts.add(contactName);
     notifyListeners();
@@ -110,8 +100,6 @@ class ConversationState extends ChangeNotifier {
 
       updateReplyPreview(contactName, replyText);
       _pushToTop(contactName);
-
-      // Sau khi reply xong → bắt đầu đếm 3 phút rồi offline
       _startOfflineCountdown(contactName);
     });
   }
@@ -145,6 +133,8 @@ class ConversationState extends ChangeNotifier {
   void updateReactionPreview(String name, String emoji, String snippet) {
     final s = snippet.length > 20 ? '${snippet.substring(0, 20)}...' : snippet;
     _previews[name] = 'Đã bày tỏ cảm xúc $emoji về "$s"';
+    // ✅ Thả emote = hoạt động mới → đưa lên đầu danh sách
+    _pushToTop(name);
     notifyListeners();
   }
 
@@ -204,21 +194,27 @@ class ConversationState extends ChangeNotifier {
   }
 
   // ── Helper: format last-seen ──────────────────────────────────────────────
-  /// Trả về chuỗi hiển thị trạng thái hoạt động.
-  /// Nếu đang online → "Đang hoạt động"
-  /// Nếu offline, tính từ [lastSeenAt]:
-  ///   < 1 phút  → "Vừa hoạt động"
-  ///   < 60 phút → "Hoạt động X phút trước"
-  ///   < 24 giờ  → "Hoạt động X giờ trước"
-  ///   >= 1 ngày → null (caller tự xử lý)
-  String? getActivityStatus(String name) {
-    if (isOnline(name)) return 'Đang hoạt động';
+  /// [isEn] = true → trả về tiếng Anh, false → tiếng Việt (mặc định)
+  String? getActivityStatus(String name, {bool isEn = false}) {
+    if (isOnline(name)) {
+      return isEn ? 'Active now' : 'Đang hoạt động';
+    }
     final seen = _lastSeenAt[name];
-    if (seen == null) return null;
+    if (seen == null) return null; // caller tự xử lý fallback
     final diff = DateTime.now().difference(seen);
-    if (diff.inMinutes < 1)  return 'Vừa hoạt động';
-    if (diff.inMinutes < 60) return 'Hoạt động ${diff.inMinutes} phút trước';
-    if (diff.inHours < 24)   return 'Hoạt động ${diff.inHours} giờ trước';
-    return null; // > 1 ngày: không hiển thị
+    if (diff.inMinutes < 1) {
+      return isEn ? 'Active just now' : 'Vừa hoạt động';
+    }
+    if (diff.inMinutes < 60) {
+      return isEn
+          ? 'Active ${diff.inMinutes}m ago'
+          : 'Hoạt động ${diff.inMinutes} phút trước';
+    }
+    if (diff.inHours < 24) {
+      return isEn
+          ? 'Active ${diff.inHours}h ago'
+          : 'Hoạt động ${diff.inHours} giờ trước';
+    }
+    return null;
   }
 }
