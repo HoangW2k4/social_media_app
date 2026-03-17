@@ -10,6 +10,7 @@ class AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final langProvider = Provider.of<LanguageProvider>(context);
+    final isEn = !langProvider.isVietnamese;
 
     return Scaffold(
       body: ListView(
@@ -117,10 +118,7 @@ class AboutPage extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  '🇻🇳',
-                                  style: TextStyle(fontSize: 20),
-                                ),
+                                const Text('🇻🇳', style: TextStyle(fontSize: 20)),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Tiếng Việt',
@@ -160,10 +158,7 @@ class AboutPage extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  '🇺🇸',
-                                  style: TextStyle(fontSize: 20),
-                                ),
+                                const Text('🇺🇸', style: TextStyle(fontSize: 20)),
                                 const SizedBox(width: 8),
                                 Text(
                                   'English',
@@ -199,21 +194,14 @@ class AboutPage extends StatelessWidget {
                   children: [
                     Text(
                       t.translate('about_app_description'),
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        height: 1.5,
-                      ),
+                      style: TextStyle(color: Colors.grey.shade700, height: 1.5),
                     ),
                     const SizedBox(height: 16),
                     _buildInfoRow(t.translate('about_version'), '1.0.0'),
                     _buildInfoRow(
-                      t.translate('about_platform'),
-                      'Android / iOS / Web',
-                    ),
+                        t.translate('about_platform'), 'Android / iOS / Web'),
                     _buildInfoRow(
-                      t.translate('about_framework'),
-                      'Flutter / Dart',
-                    ),
+                        t.translate('about_framework'), 'Flutter / Dart'),
                   ],
                 ),
               ),
@@ -221,27 +209,38 @@ class AboutPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Creator Info
+          // ✅ Creator Info — 2 developers, bilingual
           _buildSection(
-            icon: Icons.person_outline,
+            icon: Icons.people_outline,
             title: t.translate('about_creator_info'),
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoRow(
-                      t.translate('about_creator_name'),
-                      t.translate('about_creator_value'),
+                    // ── Developer 1 ──────────────────────────────────────
+                    _buildDeveloperCard(
+                      isEn: isEn,
+                      index: 1,
+                      name: 'Trần Duy Việt Hoằng',
+                      email: '22010142@st.phenikaa-uni.edu.vn',
+                      scope: isEn
+                          ? 'Home Page, Friends Page'
+                          : 'Trang Home, Trang Bạn Bè',
+                      github: 'https://github.com/HoangW2k4/social_media_app',
                     ),
-                    _buildInfoRow(
-                      t.translate('about_email'),
-                      'developer@socialbook.com',
-                    ),
-                    _buildInfoRow(
-                      t.translate('about_github'),
-                      'github.com/socialbook',
+                    const SizedBox(height: 12),
+                    // ── Developer 2 ──────────────────────────────────────
+                    _buildDeveloperCard(
+                      isEn: isEn,
+                      index: 2,
+                      name: 'Nguyễn Tá Đặng Minh',
+                      email: 'nguyentadangminh04@gmail.com',
+                      scope: isEn
+                          ? 'Messages Page, About Page'
+                          : 'Trang Message, Trang Giới Thiệu',
+                      github: 'https://github.com/HoangW2k4/social_media_app',
                     ),
                   ],
                 ),
@@ -259,26 +258,11 @@ class AboutPage extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _buildFeatureItem(
-                      t.translate('about_feature_1'),
-                      Icons.feed,
-                    ),
-                    _buildFeatureItem(
-                      t.translate('about_feature_2'),
-                      Icons.people,
-                    ),
-                    _buildFeatureItem(
-                      t.translate('about_feature_3'),
-                      Icons.chat,
-                    ),
-                    _buildFeatureItem(
-                      t.translate('about_feature_4'),
-                      Icons.language,
-                    ),
-                    _buildFeatureItem(
-                      t.translate('about_feature_5'),
-                      Icons.palette,
-                    ),
+                    _buildFeatureItem(t.translate('about_feature_1'), Icons.feed),
+                    _buildFeatureItem(t.translate('about_feature_2'), Icons.people),
+                    _buildFeatureItem(t.translate('about_feature_3'), Icons.chat),
+                    _buildFeatureItem(t.translate('about_feature_4'), Icons.language),
+                    _buildFeatureItem(t.translate('about_feature_5'), Icons.palette),
                   ],
                 ),
               ),
@@ -294,6 +278,51 @@ class AboutPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  // ── Developer card ──────────────────────────────────────────────────────────
+  Widget _buildDeveloperCard({
+    required bool isEn,
+    required int index,
+    required String name,
+    required String email,
+    required String scope,
+    required String github,
+  }) {
+    final devLabel  = isEn ? 'Developer $index' : 'Nhà Phát triển $index';
+    final nameLabel = isEn ? 'Developer'       : 'Developer';
+    final emailLabel= isEn ? 'Email'           : 'Email';
+    final scopeLabel= isEn ? 'Scope'           : 'Mục Phát Triển';
+    final ghLabel   = isEn ? 'GitHub'          : 'GitHub';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: "Nhà Phát triển 1" / "Developer 1"
+          Row(children: [
+            const Icon(Icons.person, size: 18, color: Colors.blue),
+            const SizedBox(width: 6),
+            Text(devLabel,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: Colors.blue)),
+          ]),
+          const SizedBox(height: 10),
+          _buildInfoRow(nameLabel, name),
+          _buildInfoRow(emailLabel, email),
+          _buildInfoRow(scopeLabel, scope),
+          _buildInfoRow(ghLabel, github),
         ],
       ),
     );
@@ -316,13 +345,9 @@ class AboutPage extends StatelessWidget {
               children: [
                 Icon(icon, color: Colors.blue),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -335,22 +360,19 @@ class AboutPage extends StatelessWidget {
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
+            width: 110,
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: Colors.black87)),
           ),
           Expanded(
-            child: Text(value, style: TextStyle(color: Colors.grey.shade700)),
+            child: Text(value,
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
           ),
         ],
       ),
