@@ -81,10 +81,6 @@ class PostCreateCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Full-screen compose page
-// ---------------------------------------------------------------------------
-
 class _ComposePostPage extends StatefulWidget {
   final String currentUserName;
   final Color currentUserColor;
@@ -145,7 +141,7 @@ class _ComposePostPageState extends State<_ComposePostPage> {
 
     final post = PostItemData(
       userName: widget.currentUserName,
-      time: 'Just now',
+      time: AppLocalizations.of(context).translate('post_now'),
       content: _captionController.text.trim(),
       likes: 0,
       commentsCount: 0,

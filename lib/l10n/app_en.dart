@@ -28,6 +28,7 @@ const Map<String, String> en = {
   'post_create_camera': 'Camera',
   'post_create_feeling': 'Feeling',
   'post_create_location': 'Check in',
+  'post_now': 'Just now',
 
   // Friends Page
   'friends_title': 'Friends',

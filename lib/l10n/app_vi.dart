@@ -28,6 +28,7 @@ const Map<String, String> vi = {
   'post_create_camera': 'Camera',
   'post_create_feeling': 'Cảm xúc',
   'post_create_location': 'Check in',
+  'post_now': 'Vừa xong',
 
   // Friends Page
   'friends_title': 'Bạn bè',
