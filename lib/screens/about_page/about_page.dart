@@ -228,10 +228,9 @@ class AboutPage extends StatelessWidget {
                       scope: isEn
                           ? 'Home Page, Friends Page'
                           : 'Trang Home, Trang Bạn Bè',
-                      github: 'https://github.com/HoangW2k4/social_media_app',
+                      github: 'https://github.com/HoangW2k4/2026_3_LTTBDD_N03_Nhom_13-dev1',
                     ),
                     const SizedBox(height: 12),
-                    // ── Developer 2 ──────────────────────────────────────
                     _buildDeveloperCard(
                       isEn: isEn,
                       index: 2,
@@ -240,7 +239,7 @@ class AboutPage extends StatelessWidget {
                       scope: isEn
                           ? 'Messages Page, About Page'
                           : 'Trang Message, Trang Giới Thiệu',
-                      github: 'https://github.com/HoangW2k4/social_media_app',
+                      github: 'https://github.com/HoangW2k4/2026_3_LTTBDD_N03_Nhom_13-dev3',
                     ),
                   ],
                 ),
